@@ -1,0 +1,271 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/Utilities.dir/./__/__/Utilities/lpbam/stm32_adv_lpbam_common.c.obj"
+		},
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/Utilities.dir/./__/__/Utilities/lpbam/STM32U5/stm32_ll_lpbam.c.obj"
+		},
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/Utilities.dir/./__/__/Utilities/lpbam/stm32_lpbam_common.c.obj"
+		},
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/Utilities.dir/./__/__/Utilities/lpbam/stm32_adv_lpbam_i2c.c.obj"
+		},
+		{
+			"path" : "cmake/stm32cubemx/CMakeFiles/Utilities.dir/./__/__/Utilities/lpbam/stm32_lpbam_i2c.c.obj"
+		}
+	],
+	"backtrace" : 1,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"target_link_libraries",
+			"add_compile_options",
+			"target_sources"
+		],
+		"files" : 
+		[
+			"cmake/stm32cubemx/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 112,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 114,
+				"parent" : 0
+			},
+			{
+				"command" : 2,
+				"file" : 0,
+				"line" : 10,
+				"parent" : 0
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 113,
+				"parent" : 0
+			}
+		]
+	},
+	"codemodelVersion" : 
+	{
+		"major" : 2,
+		"minor" : 9
+	},
+	"compileDependencies" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "stm32cubemx::@768a070a0fe75716b479"
+		}
+	],
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : " -mcpu=cortex-m33 -mfpu=fpv4-sp-d16 -mfloat-abi=hard  -Wall -fdata-sections -ffunction-sections -O0 -g3 -std=gnu11"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-mcpu=cortex-m33"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-mthumb"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-mfpu=fpv5-sp-d16"
+				},
+				{
+					"backtrace" : 3,
+					"fragment" : "-mfloat-abi=hard"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 2,
+					"define" : "DEBUG"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "STM32U5A5xx"
+				},
+				{
+					"backtrace" : 2,
+					"define" : "USE_HAL_DRIVER"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../LPBAM/LpbamAp1"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Core/Inc"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Core/App"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/HC_SR04"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/OLED"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/SYN6288"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/fonts"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/VL53L5CX"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Utilities/lpbam"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Utilities/lpbam/STM32U5"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/STM32U5xx_HAL_Driver/Inc"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/STM32U5xx_HAL_Driver/Inc/Legacy"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/CMSIS/Device/ST/STM32U5xx/Include"
+				},
+				{
+					"backtrace" : 2,
+					"path" : "E:/VScode/HAL/V0.1_LED/cmake/stm32cubemx/../../Drivers/CMSIS/Include"
+				}
+			],
+			"language" : "C",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					1
+				],
+				"standard" : "11"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4
+			]
+		}
+	],
+	"id" : "Utilities::@768a070a0fe75716b479",
+	"interfaceCompileDependencies" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "stm32cubemx::@768a070a0fe75716b479"
+		}
+	],
+	"interfaceLinkLibraries" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "stm32cubemx::@768a070a0fe75716b479"
+		}
+	],
+	"linkLibraries" : 
+	[
+		{
+			"backtrace" : 2,
+			"id" : "stm32cubemx::@768a070a0fe75716b479"
+		}
+	],
+	"name" : "Utilities",
+	"paths" : 
+	{
+		"build" : "cmake/stm32cubemx",
+		"source" : "cmake/stm32cubemx"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 4,
+			"compileGroupIndex" : 0,
+			"path" : "Utilities/lpbam/stm32_adv_lpbam_common.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 4,
+			"compileGroupIndex" : 0,
+			"path" : "Utilities/lpbam/STM32U5/stm32_ll_lpbam.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 4,
+			"compileGroupIndex" : 0,
+			"path" : "Utilities/lpbam/stm32_lpbam_common.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 4,
+			"compileGroupIndex" : 0,
+			"path" : "Utilities/lpbam/stm32_adv_lpbam_i2c.c",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 4,
+			"compileGroupIndex" : 0,
+			"path" : "Utilities/lpbam/stm32_lpbam_i2c.c",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "OBJECT_LIBRARY"
+}
