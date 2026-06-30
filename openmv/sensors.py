@@ -185,19 +185,18 @@ class SensorReader:
         DEGRADED  (1500 ~ 2000ms):     0.5 → 0.0 线性衰减
         TIMEOUT   (> 2000ms):          0.0
         """
-        cfg = self.cfg
 
-        if age_ms <= cfg.SENSOR_STALE_MS:
+        if age_ms <= self.cfg.SENSOR_STALE_MS:
             return 1.0
 
-        if age_ms <= cfg.SENSOR_DEGRADED_MS:
-            progress = (age_ms - cfg.SENSOR_STALE_MS) / (
-                cfg.SENSOR_DEGRADED_MS - cfg.SENSOR_STALE_MS)
+        if age_ms <= self.cfg.SENSOR_DEGRADED_MS:
+            progress = (age_ms - self.cfg.SENSOR_STALE_MS) / (
+                self.cfg.SENSOR_DEGRADED_MS - self.cfg.SENSOR_STALE_MS)
             return 1.0 - 0.5 * progress
 
-        if age_ms <= cfg.SENSOR_TIMEOUT_MS:
-            progress = (age_ms - cfg.SENSOR_DEGRADED_MS) / (
-                cfg.SENSOR_TIMEOUT_MS - cfg.SENSOR_DEGRADED_MS)
+        if age_ms <= self.cfg.SENSOR_TIMEOUT_MS:
+            progress = (age_ms - self.cfg.SENSOR_DEGRADED_MS) / (
+                self.cfg.SENSOR_TIMEOUT_MS - self.cfg.SENSOR_DEGRADED_MS)
             return 0.5 * (1.0 - progress)
 
         return 0.0
@@ -211,19 +210,18 @@ class SensorReader:
         年龄 + 首次数据标记 + 连续超时计数 → 多级状态
         返回值: 'OK' | 'STALE' | 'DEGRADED' | 'TIMEOUT' | 'DEAD'
         """
-        cfg = self.cfg
 
-        if consecutive_timeouts >= cfg.SENSOR_DEAD_CONSECUTIVE:
+        if consecutive_timeouts >= self.cfg.SENSOR_DEAD_CONSECUTIVE:
             return 'DEAD'
 
         if not has_data:
             return 'TIMEOUT'
 
-        if age_ms <= cfg.SENSOR_STALE_MS:
+        if age_ms <= self.cfg.SENSOR_STALE_MS:
             return 'OK'
-        if age_ms <= cfg.SENSOR_DEGRADED_MS:
+        if age_ms <= self.cfg.SENSOR_DEGRADED_MS:
             return 'STALE'
-        if age_ms <= cfg.SENSOR_TIMEOUT_MS:
+        if age_ms <= self.cfg.SENSOR_TIMEOUT_MS:
             return 'DEGRADED'
 
         return 'TIMEOUT'
@@ -237,7 +235,6 @@ class SensorReader:
         更新所有传感器的置信度、多级状态、连续超时计数、历史缓冲区。
         每帧调用一次 (在 read() 之后)。
         """
-        cfg = self.cfg
         now = time.ticks_ms()
 
         def diagnose(valid, last_ticks, consecutive_key,
@@ -263,7 +260,7 @@ class SensorReader:
             # 历史缓冲区 (仅新鲜数据)
             if status in ('OK', 'STALE') and value is not None and value > 0:
                 history.append(value)
-                if len(history) > cfg.CONFIDENCE_HISTORY_SIZE:
+                if len(history) > self.cfg.CONFIDENCE_HISTORY_SIZE:
                     history.pop(0)
 
             return conf, status

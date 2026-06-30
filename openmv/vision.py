@@ -56,7 +56,7 @@ class FlickerDetector:
 
     def __init__(self, cfg):
         self.cfg = cfg
-        size = cfg.FLICKER_HISTORY_SIZE
+        size = self.cfg.FLICKER_HISTORY_SIZE
         self._red_history = [0.0] * size
         self._green_history = [0.0] * size
         self._idx = 0
@@ -149,11 +149,6 @@ class FlickerDetector:
                         max(self.cfg.FLICKER_CV_THRESH, 0.001) * 0.5)
 
 
-# ============================================================================
-# ★ v6 新增: 斑马线消失预测器
-# ============================================================================
-
-
 
 # ============================================================================
 # ★ v6 新增: 盲道视觉追踪器
@@ -180,13 +175,12 @@ class TactileTracker:
         self._tf_direction = TemporalFilter(5, 0.5, 3)
     def track(self, img):
         """返回: (direction, offset_px, guidance_text)"""
-        cfg = self.cfg
 
         yellow_blobs = img.find_blobs(
-            [cfg.TACTILE_YELLOW_TH],
-            roi=cfg.ROI_TACTILE,
-            pixels_threshold=cfg.TACTILE_MIN_BLOB_AREA // 2,
-            area_threshold=cfg.TACTILE_MIN_BLOB_AREA,
+            [self.cfg.TACTILE_YELLOW_TH],
+            roi=self.cfg.ROI_TACTILE,
+            pixels_threshold=self.cfg.TACTILE_MIN_BLOB_AREA // 2,
+            area_threshold=self.cfg.TACTILE_MIN_BLOB_AREA,
             merge=True)
 
         if not yellow_blobs:
@@ -194,7 +188,7 @@ class TactileTracker:
             return 'none', 0, ''
 
         tactile_blob = max(yellow_blobs, key=lambda b: b.area())
-        if tactile_blob.area() < cfg.TACTILE_MIN_BLOB_AREA:
+        if tactile_blob.area() < self.cfg.TACTILE_MIN_BLOB_AREA:
             self._tf_direction.update(None)
             return 'none', 0, ''
 
@@ -212,7 +206,7 @@ class TactileTracker:
 
         valid_angles = []
         for l in lines:
-            if l.length() < cfg.TACTILE_LINE_MIN_LEN:
+            if l.length() < self.cfg.TACTILE_LINE_MIN_LEN:
                 continue
             angle_deg = math.degrees(l.theta())
             if angle_deg > 90:
@@ -220,14 +214,14 @@ class TactileTracker:
             valid_angles.append(angle_deg)
 
         # 综合方向判断
-        if len(valid_angles) >= cfg.TACTILE_MIN_LINE_COUNT:
+        if len(valid_angles) >= self.cfg.TACTILE_MIN_LINE_COUNT:
             mean_angle = sum(valid_angles) / len(valid_angles)
 
 
-            if mean_angle < cfg.TACTILE_ANGLE_LEFT:
+            if mean_angle < self.cfg.TACTILE_ANGLE_LEFT:
                 raw_direction = 'left'
                 guidance = '偏左，请向右调整'
-            elif mean_angle > cfg.TACTILE_ANGLE_RIGHT:
+            elif mean_angle > self.cfg.TACTILE_ANGLE_RIGHT:
                 raw_direction = 'right'
                 guidance = '偏右，请向左调整'
             else:
@@ -235,7 +229,7 @@ class TactileTracker:
                 guidance = '在盲道中间'
         else:
             # fallback: 盲道中心偏移
-            if abs(offset_px) <= cfg.TACTILE_CENTER_TOLERANCE:
+            if abs(offset_px) <= self.cfg.TACTILE_CENTER_TOLERANCE:
                 raw_direction = 'center'
                 guidance = '在盲道中间'
             elif offset_px < 0:
@@ -263,9 +257,9 @@ class VisionDetector:
         self.cfg = cfg
 
         # ── 时间滤波器 (每种检测独立) ──
-        hsize = cfg.VISION_TF_HISTORY
-        confirm = cfg.VISION_TF_CONFIRM
-        hyst = cfg.VISION_TF_HYSTERESIS
+        hsize = self.cfg.VISION_TF_HISTORY
+        confirm = self.cfg.VISION_TF_CONFIRM
+        hyst = self.cfg.VISION_TF_HYSTERESIS
 
         self._tf_light     = TemporalFilter(hsize, confirm, 1)  # 红绿灯迟滞降为1帧，防残留
         self._tf_crosswalk = TemporalFilter(hsize, confirm, hyst)
@@ -308,23 +302,22 @@ class VisionDetector:
 
     def update_frame_context(self, img, avg_dist, pitch_deg=0):
         """每帧调用一次, 计算亮度偏移 + 距离缩放 + 头部俯仰"""
-        cfg = self.cfg
 
-        stats = img.get_statistics(roi=cfg.ROI_LIGHT)
+        stats = img.get_statistics(roi=self.cfg.ROI_LIGHT)
         l_mean = stats.l_mean()
         self._brightness_offset = int(
-            (l_mean - cfg.VISION_BRIGHTNESS_REF) * cfg.VISION_L_THRESH_SHIFT)
+            (l_mean - self.cfg.VISION_BRIGHTNESS_REF) * self.cfg.VISION_L_THRESH_SHIFT)
 
         if avg_dist > 0:
-            self._distance_scale = max(cfg.VISION_AREA_SCALE_MIN,
-                min(cfg.VISION_AREA_SCALE_MAX,
-                    cfg.VISION_DIST_REF / avg_dist))
+            self._distance_scale = max(self.cfg.VISION_AREA_SCALE_MIN,
+                min(self.cfg.VISION_AREA_SCALE_MAX,
+                    self.cfg.VISION_DIST_REF / avg_dist))
         else:
             self._distance_scale = 1.0
 
         # ★ v6.2: 低头时红绿灯在画面中下移，ROI 跟随俯仰角偏移
         # 低头(负角度) → y 增大。每度约 3 像素
-        self._pitch_offset_y = int(pitch_deg * cfg.PITCH_PIXEL_PER_DEGREE)
+        self._pitch_offset_y = int(pitch_deg * self.cfg.PITCH_PIXEL_PER_DEGREE)
 
     # ==================================================================
     # 工具方法
@@ -355,13 +348,13 @@ class VisionDetector:
 
     def detect_traffic_light(self, img):
         # 动态 ROI: 高度从 100 扩到 140 (覆盖中位红绿灯)，y 随低头角度下移
-        rx, _, rw, _ = cfg.ROI_LIGHT
-        ry = max(0, cfg.ROI_LIGHT[1] + self._pitch_offset_y)
-        rh = cfg.LIGHT_ROI_HEIGHT
+        rx, _, rw, _ = self.cfg.ROI_LIGHT
+        ry = max(0, self.cfg.ROI_LIGHT[1] + self._pitch_offset_y)
+        rh = self.cfg.LIGHT_ROI_HEIGHT
         light_roi = (rx, ry, rw, rh)
 
-        red_th   = self._adapt_L_threshold(cfg.RED_LIGHT_TH)
-        green_th = self._adapt_L_threshold(cfg.GREEN_LIGHT_TH)
+        red_th   = self._adapt_L_threshold(self.cfg.RED_LIGHT_TH)
+        green_th = self._adapt_L_threshold(self.cfg.GREEN_LIGHT_TH)
 
         reds = img.find_blobs(
             [red_th], roi=light_roi,
@@ -379,8 +372,8 @@ class VisionDetector:
         valid_reds   = [b for b in reds   if _valid_shape(b)]
         valid_greens = [b for b in greens if _valid_shape(b)]
 
-        max_red_all   = max((b.area() for b in valid_reds),   default=0)
-        max_green_all = max((b.area() for b in valid_greens), default=0)
+        max_red_all   = max([b.area() for b in valid_reds]) if valid_reds else 0
+        max_green_all = max([b.area() for b in valid_greens]) if valid_greens else 0
 
         # 亮度验证: 交通灯应明显亮于周围
         roi_l = min(img.get_statistics(roi=light_roi).l_mean(), 75)  # 上限防止强光下阈值溢出
@@ -404,14 +397,14 @@ class VisionDetector:
         round_greens = [b for b in valid_greens if is_round(b)]
         self.flicker.update(img, round_reds, round_greens)
 
-        area_th = self._scaled_area(cfg.AREA_LIGHT_MIN)
+        area_th = self._scaled_area(self.cfg.AREA_LIGHT_MIN)
 
         if max_red_all > max_green_all and max_red_all > area_th:
             raw_result = 'red'
-            raw_conf = min(1.0, max_red_all / (area_th * 2.5))
+            raw_conf = min(1.0, max_red_all / (area_th * self.cfg.LIGHT_AREA_CONF_DIVISOR))
         elif max_green_all > max_red_all and max_green_all > area_th:
             raw_result = 'green'
-            raw_conf = min(1.0, max_green_all / (area_th * 2.5))
+            raw_conf = min(1.0, max_green_all / (area_th * self.cfg.LIGHT_AREA_CONF_DIVISOR))
         else:
             raw_result = 'none'
             raw_conf = 0.0
@@ -454,19 +447,18 @@ class VisionDetector:
 
     def detect_crosswalk(self, img):
         """返回: (is_crosswalk, offset_x)"""
-        cfg = self.cfg
 
         white = img.find_blobs(
-            [cfg.WHITE_TH], roi=cfg.ROI_CROSSWALK,
+            [self.cfg.WHITE_TH], roi=self.cfg.ROI_CROSSWALK,
             pixels_threshold=50, area_threshold=50, merge=False)
         stripes = [b for b in white
-                   if b.w() > b.h() * cfg.CROSSWALK_WIDTH_RATIO and b.w() > 20]
+                   if b.w() > b.h() * self.cfg.CROSSWALK_WIDTH_RATIO and b.w() > 20]
 
         raw_result = False
         raw_offset = 0
         raw_conf = 0.0
 
-        if len(stripes) >= cfg.CROSSWALK_MIN_STRIPES:
+        if len(stripes) >= self.cfg.CROSSWALK_MIN_STRIPES:
             y_coords = [b.cy() for b in stripes]
             if max(y_coords) - min(y_coords) >= 30:
                 # 条纹宽度应相近 (斑马线条纹等宽, 随机白块宽窄不一)
@@ -477,14 +469,14 @@ class VisionDetector:
                     if w_std / mean_w < 0.5:  # 宽度标准差<50%均值 = 等宽斑马线
                         white_area = sum(b.area() for b in stripes)
                         ratio = white_area / (320 * 120)
-                        if ratio >= cfg.CROSSWALK_WHITE_RATIO:
+                        if ratio >= self.cfg.CROSSWALK_WHITE_RATIO:
                             raw_result = True
                             x_centers = [b.cx() for b in stripes]
                             cross_center = sum(x_centers) / len(x_centers)
                             raw_offset = int(cross_center - 160)
                             stripe_conf = min(1.0, len(stripes) /
-                                              (cfg.CROSSWALK_MIN_STRIPES * 2))
-                            area_conf = min(1.0, ratio / (cfg.CROSSWALK_WHITE_RATIO * 2))
+                                              (self.cfg.CROSSWALK_MIN_STRIPES * 2))
+                            area_conf = min(1.0, ratio / (self.cfg.CROSSWALK_WHITE_RATIO * 2))
                             raw_conf = (stripe_conf + area_conf) / 2.0
 
         result, self.crosswalk_confidence = self._tf_crosswalk.update(
@@ -502,10 +494,9 @@ class VisionDetector:
 
     def detect_obstacle(self, img):
         """返回: (最大色块 或 None, 最大面积)"""
-        cfg = self.cfg
 
         blobs = img.find_blobs(
-            [cfg.OBSTACLE_TH],
+            [self.cfg.OBSTACLE_TH],
             pixels_threshold=200, area_threshold=200, merge=True)
 
         if not blobs:
@@ -514,19 +505,19 @@ class VisionDetector:
 
         largest = max(blobs, key=lambda b: b.area())
         area = largest.area()
-        effective_caution = self._scaled_area(cfg.AREA_CAUTION)
+        effective_caution = self._scaled_area(self.cfg.AREA_CAUTION)
 
         if area < effective_caution:
             self.obstacle_confidence = 0.0
             return None, 0
 
         texture = self._texture_score(img, largest)
-        if texture < cfg.VISION_TEXTURE_MIN and area < effective_caution * 2:
+        if texture < self.cfg.VISION_TEXTURE_MIN and area < effective_caution * 2:
             self.obstacle_confidence = 0.0
             return None, 0
 
-        area_conf = min(1.0, area / (effective_caution * cfg.OBSTACLE_AREA_CONF_SCALE))
-        texture_conf = min(1.0, texture / max(cfg.VISION_TEXTURE_MIN * 3, 1))
+        area_conf = min(1.0, area / (effective_caution * self.cfg.OBSTACLE_AREA_CONF_SCALE))
+        texture_conf = min(1.0, texture / max(self.cfg.VISION_TEXTURE_MIN * 3, 1))
         raw_conf = (area_conf * 0.6 + texture_conf * 0.4)
 
         result, self.obstacle_confidence = self._tf_obstacle.update(
@@ -544,26 +535,25 @@ class VisionDetector:
 
     def check_lateral_line(self, img, avg_dist):
         """检测横向长线条"""
-        cfg = self.cfg
 
         if avg_dist >= 150:
             self.lateral_confidence = 0.0
             return False
 
         lines = img.find_line_segments(
-            roi=cfg.ROI_LATERAL, merge_distance=10, max_theta_diff=15)
+            roi=self.cfg.ROI_LATERAL, merge_distance=10, max_theta_diff=15)
 
         raw_result = False
         raw_conf = 0.0
         max_len = 0
 
         for l in lines:
-            if abs(math.degrees(l.theta())) < 10 and l.length() > cfg.LAT_LINE_MIN_LEN:
+            if abs(math.degrees(l.theta())) < 10 and l.length() > self.cfg.LAT_LINE_MIN_LEN:
                 raw_result = True
                 max_len = max(max_len, l.length())
 
         if raw_result:
-            raw_conf = min(1.0, max_len / (cfg.LAT_LINE_MIN_LEN * 2))
+            raw_conf = min(1.0, max_len / (self.cfg.LAT_LINE_MIN_LEN * 2))
 
         result, self.lateral_confidence = self._tf_lateral.update(
             raw_result, raw_conf)
@@ -576,15 +566,14 @@ class VisionDetector:
     def detect_pothole_bump(self, img, current_dist, last_dist,
                             obstacle_blob, obstacle_area):
         """返回: 'pothole', 'bump', 'none'"""
-        cfg = self.cfg
 
         if last_dist <= 0 or current_dist <= 0:
             self.pothole_confidence = 0.0
             return 'none'
 
-        effective_drop = cfg.POTHOLE_DIST_DROP * self._distance_scale
-        effective_block_dist = cfg.DIST_BLOCK * self._distance_scale
-        effective_caution = self._scaled_area(cfg.AREA_CAUTION)
+        effective_drop = self.cfg.POTHOLE_DIST_DROP * self._distance_scale
+        effective_block_dist = self.cfg.DIST_BLOCK * self._distance_scale
+        effective_caution = self._scaled_area(self.cfg.AREA_CAUTION)
 
         if (last_dist - current_dist > effective_drop
                 and current_dist < effective_block_dist):
@@ -594,9 +583,9 @@ class VisionDetector:
 
             edges = img.find_edges(image.EDGE_CANNY, threshold=(50, 80))
             try:
-                bottom = edges.copy(roi=cfg.POTHOLE_EDGE_ROI)
+                bottom = edges.copy(roi=self.cfg.POTHOLE_EDGE_ROI)
                 edge_intensity = bottom.mean()
-                if edge_intensity > cfg.POTHOLE_EDGE_MEAN:
+                if edge_intensity > self.cfg.POTHOLE_EDGE_MEAN:
                     raw_result = 'bump'
                 else:
                     raw_result = 'pothole'
@@ -620,7 +609,6 @@ class VisionDetector:
     def detect_stairs(self, img, avg_dist, ground_dist=0):
         """返回: 'up', 'down', 'potential', 'none'
         v6.2: ToF 地面距离判断方向。距离突增→下楼, 距离平稳→上楼"""
-        cfg = self.cfg
 
         effective_max = 200 * self._distance_scale
         if avg_dist > effective_max:
@@ -632,15 +620,15 @@ class VisionDetector:
 
         # Hough 线检测台阶纹理
         lines = img.find_line_segments(
-            roi=cfg.ROI_GROUND, merge_distance=10, max_theta_diff=15)
-        if len(lines) >= cfg.STAIRS_MIN_LINES:
+            roi=self.cfg.ROI_GROUND, merge_distance=10, max_theta_diff=15)
+        if len(lines) >= self.cfg.STAIRS_MIN_LINES:
             left_cnt  = sum(1 for l in lines if math.degrees(l.theta()) < 90)
             right_cnt = sum(1 for l in lines if math.degrees(l.theta()) > 90)
             if left_cnt >= 3 and right_cnt >= 3:
                 avg_len = sum(l.length() for l in lines) / len(lines)
-                if cfg.STAIRS_AVG_LEN_MIN < avg_len < cfg.STAIRS_AVG_LEN_MAX:
+                if self.cfg.STAIRS_AVG_LEN_MIN < avg_len < self.cfg.STAIRS_AVG_LEN_MAX:
                     raw_result = 'potential'
-                    line_conf = min(1.0, len(lines) / (cfg.STAIRS_MIN_LINES * 2))
+                    line_conf = min(1.0, len(lines) / (self.cfg.STAIRS_MIN_LINES * 2))
                     sym_conf = 1.0 - abs(left_cnt - right_cnt) / max(left_cnt + right_cnt, 1)
                     raw_conf = (line_conf + sym_conf) / 2.0
 
@@ -651,7 +639,7 @@ class VisionDetector:
             self._stair_ground_history.append(ground_dist)
             self._stair_ground_history.pop(0)
             recent_avg = sum(self._stair_ground_history) / len(self._stair_ground_history)
-            if ground_dist > recent_avg * cfg.STAIRS_DOWN_DIST_RATIO:   # 距离突增30%→下楼
+            if ground_dist > recent_avg * self.cfg.STAIRS_DOWN_DIST_RATIO:   # 距离突增30%→下楼
                 raw_result = 'down'
             else:
                 raw_result = 'up'
@@ -666,15 +654,14 @@ class VisionDetector:
 
     def detect_overhead(self, img, avg_dist):
         """检测头顶障碍物, 返回: (is_danger, area)"""
-        cfg = self.cfg
 
-        if avg_dist > cfg.OVERHEAD_DIST_THRESH or avg_dist <= 0:
+        if avg_dist > self.cfg.OVERHEAD_DIST_THRESH or avg_dist <= 0:
             self.overhead_confidence = 0.0
             return False, 0
 
-        effective_overhead = self._scaled_area(cfg.OVERHEAD_AREA_MIN)
+        effective_overhead = self._scaled_area(self.cfg.OVERHEAD_AREA_MIN)
         blobs = img.find_blobs(
-            [cfg.OBSTACLE_TH], roi=cfg.ROI_OVERHEAD,
+            [self.cfg.OBSTACLE_TH], roi=self.cfg.ROI_OVERHEAD,
             pixels_threshold=150, area_threshold=effective_overhead, merge=True)
 
         raw_result = False
@@ -699,23 +686,22 @@ class VisionDetector:
 
     def compute_turn_advice(self, img, avg_dist, obstacle_blob):
         """返回: 'left', 'right', 'stop', 'none'"""
-        cfg = self.cfg
 
-        if obstacle_blob is None or avg_dist >= cfg.DIST_CAUTION:
+        if obstacle_blob is None or avg_dist >= self.cfg.DIST_CAUTION:
             self.turn_confidence = 0.0
             return 'none'
 
-        effective_block = self._scaled_area(cfg.AREA_BLOCK)
-        if avg_dist < cfg.DIST_BLOCK and obstacle_blob.area() > effective_block:
+        effective_block = self._scaled_area(self.cfg.AREA_BLOCK)
+        if avg_dist < self.cfg.DIST_BLOCK and obstacle_blob.area() > effective_block:
             raw_result = 'stop'
             raw_conf = 0.9
         else:
-            left_roi  = cfg.TURN_LEFT_ROI
-            right_roi = cfg.TURN_RIGHT_ROI
+            left_roi  = self.cfg.TURN_LEFT_ROI
+            right_roi = self.cfg.TURN_RIGHT_ROI
             left_free  = not img.find_blobs(
-                [cfg.OBSTACLE_TH], roi=left_roi, pixels_threshold=100)
+                [self.cfg.OBSTACLE_TH], roi=left_roi, pixels_threshold=100)
             right_free = not img.find_blobs(
-                [cfg.OBSTACLE_TH], roi=right_roi, pixels_threshold=100)
+                [self.cfg.OBSTACLE_TH], roi=right_roi, pixels_threshold=100)
 
             center_x = obstacle_blob.cx()
             if left_free and right_free:
@@ -744,7 +730,6 @@ class VisionDetector:
         视觉盲道追踪。v6.3: tf.classify 一步式推理 + Hough 方向判断。
         返回: (direction, offset_px, guidance_text)
         """
-        cfg = self.cfg
 
         global _tactile_model_file
         is_tactile = False
@@ -752,12 +737,12 @@ class VisionDetector:
         if _tactile_model_file:
             try:
                 crop = img.copy(roi=self.cfg.ROI_TACTILE)
-                crop = crop.resize(cfg.TACTILE_MODEL_INPUT_SIZE, cfg.TACTILE_MODEL_INPUT_SIZE)
+                crop = crop.resize(self.cfg.TACTILE_MODEL_INPUT_SIZE, self.cfg.TACTILE_MODEL_INPUT_SIZE)
                 crop_gray = crop.to_grayscale()
                 results = tf.classify(_tactile_model_file, crop_gray)
                 if results:
                     scores = results[0].classification_output()
-                    is_tactile = scores[1] > cfg.TACTILE_ML_CONF_THRESHOLD if len(scores) > 1 else scores[0] > 0.5
+                    is_tactile = scores[1] > self.cfg.TACTILE_ML_CONF_THRESHOLD if len(scores) > 1 else scores[0] > 0.5
                     ai_ok = True
             except Exception:
                 pass

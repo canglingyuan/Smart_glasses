@@ -205,7 +205,6 @@ class Config:
 
     # -- 俯仰角 --
     PITCH_PIXEL_PER_DEGREE   = -3     # 每度俯仰角的 ROI y 偏移像素 (负号=低头下移)
-    RAD_TO_DEG               = 57.3   # 弧度→度转换
 
     # -- 楼梯 --
     STAIRS_DOWN_DIST_RATIO   = 1.3    # 地面距离突增超过此比例判为下楼
@@ -222,8 +221,5 @@ class Config:
     TACTILE_ML_CONF_THRESHOLD = 0.5   # AI 判定置信度阈值
 
     # -- 默认距离 (传感器未就绪时的安全值) --
-    DEFAULT_GROUND_DIST   = 200.0    # 默认地面距离 (cm)
-    DEFAULT_FORWARD_DIST  = 300.0    # 默认前向距离 (cm)
-    DEFAULT_DIST_INIT     = 300      # 距离缓冲区初始值
     OVERHEAD_RISK_DIST    = 80       # 头顶风险距离阈值 (cm)
     LATERAL_DIST_THRESH   = 100      # 横向拦截物距离阈值 (cm)

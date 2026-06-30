@@ -31,7 +31,6 @@ class DecisionEngine:
         v7.0: 移除斑马线末端/接近/偏离, 只保留基本斑马线。
             tactical_direction 替代原 TACTILE 检测 (来自 vision.py)。
         """
-        cfg = self.cfg
         events = []  # (priority, event_type, desc)
 
         # 4 - 红灯
@@ -39,7 +38,7 @@ class DecisionEngine:
             events.append((4, 'red', '红灯，请停下'))
 
         # 4 - 头顶障碍物
-        if overhead_danger and avg_dist < cfg.OVERHEAD_DIST_THRESH:
+        if overhead_danger and avg_dist < self.cfg.OVERHEAD_DIST_THRESH:
             events.append((4, 'overhead', '头顶障碍物，请低头'))
 
         # 3 - 坑洞/凸起
@@ -49,16 +48,16 @@ class DecisionEngine:
 
         # 3 - 大型障碍物
         if (obstacle_blob is not None
-                and obstacle_area > cfg.AREA_BLOCK
-                and avg_dist < cfg.DIST_BLOCK):
+                and obstacle_area > self.cfg.AREA_BLOCK
+                and avg_dist < self.cfg.DIST_BLOCK):
             events.append((3, 'obstacle', '大型障碍物阻挡'))
         elif (obstacle_blob is not None
-                and obstacle_area > cfg.AREA_CAUTION
-                and avg_dist < cfg.DIST_CAUTION):
+                and obstacle_area > self.cfg.AREA_CAUTION
+                and avg_dist < self.cfg.DIST_CAUTION):
             events.append((2, 'obstacle_near', '前方有障碍物%.0f厘米' % avg_dist))
 
         # 3 - 横向拦截物
-        if lateral_line and avg_dist < cfg.LATERAL_DIST_THRESH:
+        if lateral_line and avg_dist < self.cfg.LATERAL_DIST_THRESH:
             events.append((3, 'lateral', '横向拦截物，请绕行'))
 
         # 2 - 盲道偏离 (视觉追踪)

@@ -25,31 +25,30 @@ class ToFCalibrator:
         self._initialized = False
 
     def calibrate(self, raw_cm, tof_confidence, frame_count):
-        cfg = self.cfg
         if raw_cm <= 0:
             return raw_cm
 
-        if frame_count < cfg.TOF_CALIB_FRAMES:
+        if frame_count < self.cfg.TOF_CALIB_FRAMES:
             if tof_confidence >= 0.8 and 1 <= raw_cm <= 500:
                 self._window.append(raw_cm)
-                if len(self._window) > cfg.TOF_CALIB_WINDOW:
+                if len(self._window) > self.cfg.TOF_CALIB_WINDOW:
                     self._window.pop(0)
                 self._baseline = min(self._window)
-            if not self._initialized and len(self._window) >= cfg.TOF_CALIB_WINDOW // 2:
+            if not self._initialized and len(self._window) >= self.cfg.TOF_CALIB_WINDOW // 2:
                 self._initialized = True
             return raw_cm
 
         if tof_confidence >= 0.8 and 1 <= raw_cm <= 500:
             self._window.append(raw_cm)
-            if len(self._window) > cfg.TOF_CALIB_WINDOW:
+            if len(self._window) > self.cfg.TOF_CALIB_WINDOW:
                 self._window.pop(0)
             window_min = min(self._window)
             if self._baseline > 0:
-                self._baseline += cfg.TOF_CALIB_EMA_ALPHA * (window_min - self._baseline)
+                self._baseline += self.cfg.TOF_CALIB_EMA_ALPHA * (window_min - self._baseline)
             else:
                 self._baseline = window_min
 
-        offset = min(self._baseline, cfg.TOF_CALIB_MAX_OFFSET)
+        offset = min(self._baseline, self.cfg.TOF_CALIB_MAX_OFFSET)
         calibrated = raw_cm - offset
         return max(1.0, calibrated)
 
@@ -68,7 +67,7 @@ class DistanceFusion:
     def __init__(self, cfg, sensor_reader):
         self.cfg = cfg
         self.sr = sensor_reader
-        self.dist_buffer = [300] * cfg.DIST_BUFFER_SIZE
+        self.dist_buffer = [300] * self.cfg.DIST_BUFFER_SIZE
         self.last_distance = 300
 
         self.fusion_quality = 1.0
@@ -89,7 +88,6 @@ class DistanceFusion:
         返回综合距离用于通用决策 (坑洞/障碍物等)。
         """
         sr = self.sr
-        cfg = self.cfg
         self._frame_count += 1
 
         tc = sr.tof_confidence

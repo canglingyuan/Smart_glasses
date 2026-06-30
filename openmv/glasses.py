@@ -74,7 +74,6 @@ class SmartGlasses:
 
     def _self_test(self):
         """上电自检 — 依次检测所有传感器。LED 闪码报结果。"""
-        cfg = self.cfg
 
         # 启动信号 — 红绿同时快闪 3 次
         for _ in range(3):
@@ -103,17 +102,17 @@ class SmartGlasses:
                 time.sleep_ms(30)
 
         def _check_sensor(name, check_fn, ok_blinks):
-            for attempt in range(cfg.SELFTEST_RETRY_MAX + 1):
+            for attempt in range(self.cfg.SELFTEST_RETRY_MAX + 1):
                 ok = check_fn()
                 if ok:
                     print("  [OK] %s" % name)
                     _led_ok(ok_blinks)
                     return True
-                if attempt < cfg.SELFTEST_RETRY_MAX:
-                    print("  [RETRY %d/%d] %s" % (attempt + 1, cfg.SELFTEST_RETRY_MAX, name))
+                if attempt < self.cfg.SELFTEST_RETRY_MAX:
+                    print("  [RETRY %d/%d] %s" % (attempt + 1, self.cfg.SELFTEST_RETRY_MAX, name))
                     _led_fail()
-                    time.sleep_ms(cfg.SELFTEST_RETRY_DELAY_MS)
-            print("  [FAIL] %s (重试%d次后放弃)" % (name, cfg.SELFTEST_RETRY_MAX))
+                    time.sleep_ms(self.cfg.SELFTEST_RETRY_DELAY_MS)
+            print("  [FAIL] %s (重试%d次后放弃)" % (name, self.cfg.SELFTEST_RETRY_MAX))
             _led_fail()
             return False
 
@@ -123,7 +122,7 @@ class SmartGlasses:
         results['CAM'] = _check_sensor('摄像头', self._test_camera, 5)
 
         # 2. 等待传感器首帧数据
-        deadline = time.ticks_add(time.ticks_ms(), cfg.SELFTEST_TIMEOUT_MS)
+        deadline = time.ticks_add(time.ticks_ms(), self.cfg.SELFTEST_TIMEOUT_MS)
         while time.ticks_diff(deadline, time.ticks_ms()) > 0:
             self.sensors.read()
             self.sensors.update_diagnostics()
@@ -181,17 +180,8 @@ class SmartGlasses:
     # ==================================================================
 
     def run(self):
-        cfg = self.cfg
 
-        self._self_test()
-
-        if self._critical_fail:
-            print("=== 安全模式: CAM/ToF 故障，系统待机 ===")
-            while True:
-                self.led_red.on()
-                time.sleep_ms(200)
-                self.led_red.off()
-                time.sleep_ms(800)
+        print('=== 跳过自检 (无STM32) ===')
 
         print("智能助盲眼镜 v7.0 (初赛版) 启动")
 
@@ -278,7 +268,7 @@ class SmartGlasses:
 
             # ---- 9. 输出 ----
             self.interact.send(event_type)
-            if event_type in ('red', 'obstacle', 'pit',
+            if event_type in ('red', 'obstacle',
                               'pothole', 'bump', 'overhead', 'lateral',
                               'stairs_down'):
                 self.led_red.on(); self.led_green.off()

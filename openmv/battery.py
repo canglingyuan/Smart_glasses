@@ -10,7 +10,7 @@ class BatteryManager:
         self.cfg = cfg
         self.sr = sensor_reader
         self.pct = 100
-        self.v_buffer = [4.0] * cfg.VOLTAGE_BUFFER_SIZE
+        self.v_buffer = [4.0] * self.cfg.VOLTAGE_BUFFER_SIZE
         self.alert_20_sent = False
         self.alert_10_sent = False
         self.alert_5_sent  = False
