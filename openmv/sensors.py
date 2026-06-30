@@ -1,4 +1,4 @@
-"""
+﻿"""
 智能助盲眼镜 v7.0 · 传感器数据读取器
 =====================================
 从 UART 读取 STM32U5 发来的传感器数据包并解析。
@@ -87,7 +87,7 @@ class SensorReader:
             if not buf:
                 return
             lines = buf.decode().split('\n')
-        except:
+        except Exception:
             return
 
         now = time.ticks_ms()
@@ -108,7 +108,7 @@ class SensorReader:
                         self.us_distance = val
                         self.us_valid = True
                         self.us_last_ticks = now
-                except:
+                except Exception:
                     pass
 
             # ---- ToF 测距 (mm → cm) ----
@@ -119,7 +119,7 @@ class SensorReader:
                         self.tof_distance = val
                         self.tof_valid = True
                         self.tof_last_ticks = now
-                except:
+                except Exception:
                     pass
 
             # ---- IMU 6轴 ----
@@ -137,7 +137,7 @@ class SensorReader:
                     elif n >= 1:
                         self.imu_gx = float(parts[0])
                     self.imu_last_ticks = now
-                except:
+                except Exception:
                     pass
 
             # ---- 电池电压 ----
@@ -148,7 +148,7 @@ class SensorReader:
                         self.battery_percent = pct
                         self.battery_ok = (pct >= 10)
                         self.battery_voltage = 3.7  # 百分比模式下电压仅占位
-                except:
+                except Exception:
                     pass
             elif line.startswith('BAT:'):
                 try:
@@ -156,7 +156,7 @@ class SensorReader:
                     self.battery_ok = (
                         self.battery_voltage >= self.cfg.BAT_LOW_VOLTAGE
                     )
-                except:
+                except Exception:
                     pass
 
             # ---- 唤醒 ----

@@ -108,7 +108,7 @@ class DistanceFusion:
             self.ground_dist = tof
         if u_ok:
             self.forward_dist = sr.us_distance
-            self.overhead_risk = (sr.us_distance < 80)
+            self.overhead_risk = (sr.us_distance < self.cfg.OVERHEAD_RISK_DIST)
         else:
             self.overhead_risk = False
 

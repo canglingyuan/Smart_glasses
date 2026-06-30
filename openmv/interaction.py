@@ -10,7 +10,6 @@ STM32 V0.1_LED 固件仅支持单向指令：RED/GREEN/ZEBRA/OBSTACLE/PIT/BUMP/N
   NONE
 """
 
-import time
 
 
 class CommandSender:
@@ -45,14 +44,14 @@ class CommandSender:
                 self.uart.write(cmd + "\n")
                 self.last_cmd = cmd
                 print(">> UART send:", cmd)
-            except:
+            except Exception:
                 pass
 
     def send_raw(self, raw):
         """直接发送原始字符串 (不去重)。STM32 V0.1 会忽略不识别的指令。"""
         try:
             self.uart.write(raw + "\n")
-        except:
+        except Exception:
             pass
 
     def reset_dedup(self):

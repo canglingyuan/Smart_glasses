@@ -58,7 +58,7 @@ class DecisionEngine:
             events.append((2, 'obstacle_near', '前方有障碍物%.0f厘米' % avg_dist))
 
         # 3 - 横向拦截物
-        if lateral_line and avg_dist < 100:
+        if lateral_line and avg_dist < cfg.LATERAL_DIST_THRESH:
             events.append((3, 'lateral', '横向拦截物，请绕行'))
 
         # 2 - 盲道偏离 (视觉追踪)
@@ -83,7 +83,7 @@ class DecisionEngine:
             events.append((1, 'stairs_up', '前方疑似楼梯'))
 
         # 0 - 转弯建议
-        if turn_advice in ('left', 'right') and not events:
+        if turn_advice in ('left', 'right', 'stop') and not events:
             direction_word = '左' if turn_advice == 'left' else '右'
             events.append((0, turn_advice, '请向%s绕行' % direction_word))
 

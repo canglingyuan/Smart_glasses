@@ -1,4 +1,4 @@
-"""
+﻿"""
 智能助盲眼镜 v7.0 · 主控制器
 =====================================================
 硬件: OpenMV H7 Plus + STM32U5 + ToF + 超声波 + MPU6050
@@ -64,6 +64,9 @@ class SmartGlasses:
         self.frame_count  = 0
         self._last_desc = ""
         self._muted = False
+        self._last_light = 'none'
+        self._last_crosswalk = False
+        self._last_tactile = 'none'
 
     # ==================================================================
     # 启动自检
@@ -149,10 +152,12 @@ class SmartGlasses:
             self.led_green.on()
             time.sleep_ms(500)
             self.led_green.off()
+            self._critical_fail = False
         else:
             critical_fail = 'CAM' in failed or 'TOF' in failed
+            self._critical_fail = critical_fail
             if critical_fail:
-                print("!! 关键传感器失败，进入降级运行 !!")
+                print("!! 关键传感器(CAM/ToF)失败，进入安全模式 !!")
                 for _ in range(10):
                     self.led_red.on()
                     time.sleep_ms(50)
@@ -166,42 +171,10 @@ class SmartGlasses:
             img = sensor.snapshot()
             stats = img.get_statistics()
             return stats.l_mean() > 0
-        except:
+        except Exception:
             return False
 
     # ==================================================================
-    # 按键事件处理 (STM32 V0.1 不支持 BTN 协议，保留为兼容接口)
-    # ==================================================================
-
-    def _handle_button(self, btn_id, btn_type):
-        if btn_id == 1 and btn_type == 'SHORT':
-            if self._last_desc:
-                print("  [BTN] 重复播报: %s" % self._last_desc)
-
-        elif btn_id == 1 and btn_type == 'LONG':
-            self._muted = not self._muted
-            print("  [BTN] %s" % ("已静音" if self._muted else "已取消静音"))
-
-        elif btn_id == 2 and btn_type == 'SHORT':
-            bat_pct, _ = self.battery.update()
-            avg = self.fusion.last_distance
-            print("  [BTN] 状态播报: 电量%d%% 距离%.0fcm" % (bat_pct, avg))
-
-        elif btn_id == 2 and btn_type == 'LONG':
-            print("  [BTN] !! 手动 SOS !!")
-
-        elif btn_id == 1 and btn_type == 'DOUBLE':
-            print("  [BTN] 请求 STM32 自检")
-
-        elif btn_id == 2 and btn_type == 'DOUBLE':
-            marked = self.stats.mark_last_as_false()
-            if marked:
-                print("  [BTN] 已标记最近告警为误报")
-            else:
-                print("  [BTN] 无可标记告警 (已超时或全部已标记)")
-
-        elif btn_id == 2 and btn_type == 'TRIPLE':
-            self.stats.log_report()
 
     # ==================================================================
     # 主循环
@@ -211,6 +184,14 @@ class SmartGlasses:
         cfg = self.cfg
 
         self._self_test()
+
+        if self._critical_fail:
+            print("=== 安全模式: CAM/ToF 故障，系统待机 ===")
+            while True:
+                self.led_red.on()
+                time.sleep_ms(200)
+                self.led_red.off()
+                time.sleep_ms(800)
 
         print("智能助盲眼镜 v7.0 (初赛版) 启动")
 
@@ -227,17 +208,15 @@ class SmartGlasses:
             prev_dist = self.fusion.last_distance
             avg_dist = self.fusion.update(fused_dist)
 
-            # ---- 3. 电池管理 ----
+            # ---- 3. 电池管理 + 低电量日志 ----
             bat_pct, bat_alert_cmd = self.battery.update()
-
-            # ---- 5. 电池低电量日志 ----
             if bat_alert_cmd:
                 print("!! 电池电量: %d%%" % bat_pct)
 
-            # ---- 8. 图像捕获 ----
+            # ---- 4. 图像捕获 ----
             img = sensor.snapshot()
 
-            # ---- 9. 视觉检测 ----
+            # ---- 5. 视觉检测 ----
             # 计算头部俯仰角
             try:
                 ax = self.sensors.imu_ax
@@ -245,8 +224,10 @@ class SmartGlasses:
                 az = self.sensors.imu_az
                 pitch_deg = 0
                 if az != 0 or ay != 0:
-                    pitch_deg = math.atan2(-ax, math.sqrt(ay*ay + az*az)) * 57.3
-            except:
+                    mag_sq = ay * ay + az * az
+                    if mag_sq > 0.001:  # 避免 atan2(0,0) 平台差异
+                        pitch_deg = math.atan2(-ax, math.sqrt(mag_sq)) * 57.3
+            except Exception:
                 pitch_deg = 0
 
             self.vision.update_frame_context(img, avg_dist, pitch_deg)
@@ -262,7 +243,18 @@ class SmartGlasses:
             turn_advice = self.vision.compute_turn_advice(img, avg_dist, obstacle_blob)
             tactile_direction, _, _ = self.vision.detect_tactile(img)
 
-            # ---- 10. 综合决策 ----
+            # ---- 5.5 透明障碍检测 (ToF/超声协同视觉) ----
+            # 若传感器报告近距离物体但视觉未检测到blob, 疑似玻璃门等透明障碍
+            if obstacle_blob is None:
+                fwd_dist = self.fusion.forward_dist
+                gnd_dist = self.fusion.ground_dist
+                if (fwd_dist > 0 and fwd_dist < self.cfg.DIST_CAUTION) or (gnd_dist > 0 and gnd_dist < self.cfg.DIST_CAUTION):
+                    obstacle_blob = True  # 标记为透明障碍
+                    obstacle_area = self.cfg.AREA_BLOCK + 1  # >4000 触发 OBSTACLE 播报(触发OBSTACLE播报)
+                    print("  [TRANSPARENT] 测距%.0fcm但视觉无物，疑似透明障碍" % min(fwd_dist if fwd_dist > 0 else 999, gnd_dist if gnd_dist > 0 else 999))
+
+
+            # ---- 6. 综合决策 ----
             event_type, desc, priority, turn = self.decision.evaluate(
                 avg_dist, light, crosswalk, cross_offset,
                 obstacle_blob, obstacle_area, lateral_line,
@@ -270,7 +262,7 @@ class SmartGlasses:
                 tactile_direction)
             self._last_desc = desc
 
-            # ---- 10.5 传感器降级 (仅本地日志) ----
+            # ---- 7. 传感器降级 (仅本地日志) ----
             tof_dead = self.sensors.status.get('TOF') == 'DEAD'
             us_dead  = self.sensors.status.get('US') == 'DEAD'
             if tof_dead and us_dead:
@@ -280,11 +272,11 @@ class SmartGlasses:
             elif us_dead:
                 print("  [DEGRADED] 超声波异常，仅ToF测距")
 
-            # ---- 11. 记录告警 ----
+            # ---- 8. 记录告警 ----
             if event_type != 'clean':
                 self.stats.record(event_type, priority, desc)
 
-            # ---- 12. 输出 ----
+            # ---- 9. 输出 ----
             self.interact.send(event_type)
             if event_type in ('red', 'obstacle', 'pit',
                               'pothole', 'bump', 'overhead', 'lateral',
@@ -297,20 +289,11 @@ class SmartGlasses:
             else:
                 self.led_red.off(); self.led_green.off()
 
-            # ---- 12.5 按键 (STM32 不支持 BTN，始终为 None) ----
-            btn = self.interact.pop_button()
-            if btn is not None:
-                self._handle_button(btn[0], btn[1])
 
-            # ---- 13. 调试 ----
+            # ---- 10. 调试 ----
             # 灯状态变化 → 立即打印；无变化 → 每30帧打印
             debug_now = False
-            if not hasattr(self, '_last_light'):
-                self._last_light = light
-                self._last_crosswalk = crosswalk
-                self._last_tactile = tactile_direction
-                debug_now = True
-            elif (light != self._last_light or crosswalk != self._last_crosswalk
+            if (light != self._last_light or crosswalk != self._last_crosswalk
                   or tactile_direction != self._last_tactile):
                 self._last_light = light
                 self._last_crosswalk = crosswalk

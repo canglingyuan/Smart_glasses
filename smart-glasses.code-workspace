@@ -1,0 +1,13 @@
+﻿{
+    "folders": [
+        {
+            "name": "Smart_glasses",
+            "path": "D:\\A_Project\\Smart_glasses"
+        },
+        {
+            "name": "OpenMV_IDE",
+            "path": "D:\\AI_Code\\OpenMV_IDE\\openmv_project"
+        }
+    ],
+    "settings": {}
+}

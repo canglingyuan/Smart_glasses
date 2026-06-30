@@ -191,3 +191,39 @@ class Config:
     # ---- 缓冲区大小 ----
     DIST_BUFFER_SIZE = 5
     VOLTAGE_BUFFER_SIZE = 5
+    # ══════════════════════════════════════════════════════════════
+    # ★ v7 视觉检测 — 硬编码参数收敛
+    # ══════════════════════════════════════════════════════════════
+    # 这些值原散落在 vision.py 中，现统一收敛到 config。
+
+    # -- 红绿灯 --
+    LIGHT_ROI_HEIGHT         = 140    # 红绿灯 ROI 高度 (像素)
+    LIGHT_AREA_CONF_DIVISOR  = 2.5    # 置信度 = max_area / (阈值 × 此系数)
+
+    # -- 障碍物 --
+    OBSTACLE_AREA_CONF_SCALE = 3      # 中距障碍物面积缩放系数
+
+    # -- 俯仰角 --
+    PITCH_PIXEL_PER_DEGREE   = -3     # 每度俯仰角的 ROI y 偏移像素 (负号=低头下移)
+    RAD_TO_DEG               = 57.3   # 弧度→度转换
+
+    # -- 楼梯 --
+    STAIRS_DOWN_DIST_RATIO   = 1.3    # 地面距离突增超过此比例判为下楼
+
+    # -- 坑洞 --
+    POTHOLE_EDGE_ROI = (0, 220, 320, 20)  # 坑洞底部边缘检测 ROI
+
+    # -- 转弯建议 --
+    TURN_LEFT_ROI  = (0, 100, 50, 120)    # 左侧 ROI
+    TURN_RIGHT_ROI = (270, 100, 50, 120)  # 右侧 ROI
+
+    # -- 盲道 AI --
+    TACTILE_MODEL_INPUT_SIZE  = 64    # 模型输入尺寸 (像素)
+    TACTILE_ML_CONF_THRESHOLD = 0.5   # AI 判定置信度阈值
+
+    # -- 默认距离 (传感器未就绪时的安全值) --
+    DEFAULT_GROUND_DIST   = 200.0    # 默认地面距离 (cm)
+    DEFAULT_FORWARD_DIST  = 300.0    # 默认前向距离 (cm)
+    DEFAULT_DIST_INIT     = 300      # 距离缓冲区初始值
+    OVERHEAD_RISK_DIST    = 80       # 头顶风险距离阈值 (cm)
+        LATERAL_DIST_THRESH   = 100      # 横向拦截物距离阈值 (cm)
