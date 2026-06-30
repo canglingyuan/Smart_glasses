@@ -347,7 +347,7 @@ class VisionDetector:
     # ====================================================================
 
     def detect_traffic_light(self, img):
-        # 动态 ROI: 高度从 100 扩到 140 (覆盖中位红绿灯)，y 随低头角度下移
+        """v7.1: 箭头灯加入闪烁, 圆形收紧, A通道连续置信度, 闪烁必需"""
         rx, _, rw, _ = self.cfg.ROI_LIGHT
         ry = max(0, self.cfg.ROI_LIGHT[1] + self._pitch_offset_y)
         rh = self.cfg.LIGHT_ROI_HEIGHT
@@ -363,20 +363,19 @@ class VisionDetector:
             [green_th], roi=light_roi,
             pixels_threshold=80, area_threshold=80, merge=True)
 
-        # 全部色块 — 参与面积竞争 (兼容圆形 + 人形)
-        # 非圆形必须竖长 (交通灯人形 h > w*1.2)
-        def _valid_shape(b):
-            if b.roundness() > 0.6:
-                return True           # 圆形灯
-            return b.h() > b.w() * 1.2  # 人形灯
-        valid_reds   = [b for b in reds   if _valid_shape(b)]
-        valid_greens = [b for b in greens if _valid_shape(b)]
+        # 形状: 圆形 roundness>0.75, 人形 roundness<0.5 且 h>w*1.5 (箭头灯被排除)
+        def _is_round(b):   return b.roundness() > 0.75
+        def _is_person(b):  return b.roundness() < 0.5 and b.h() > b.w() * 1.5
+        def _valid(b):      return _is_round(b) or _is_person(b)
+
+        valid_reds   = [b for b in reds   if _valid(b)]
+        valid_greens = [b for b in greens if _valid(b)]
 
         max_red_all   = max([b.area() for b in valid_reds]) if valid_reds else 0
         max_green_all = max([b.area() for b in valid_greens]) if valid_greens else 0
 
-        # 亮度验证: 交通灯自发光应明显亮于周围背景
-        roi_l = min(img.get_statistics(roi=light_roi).l_mean(), 75)  # 上限防止强光下阈值溢出
+        # 亮度: 自发光必须亮于背景 *1.25, roi_l上限75防止强光失效
+        roi_l = min(img.get_statistics(roi=light_roi).l_mean(), 75)
         if max_red_all > 0:
             try:
                 best_red = max(valid_reds, key=lambda b: b.area())
@@ -390,12 +389,8 @@ class VisionDetector:
                     max_green_all = 0
             except Exception: pass
 
-        # 仅圆形色块 — 送入闪烁检测 (人形轮廓无 LED 光源，闪烁无意义)
-        def is_round(b):
-            return b.roundness() > 0.6
-        round_reds   = [b for b in valid_reds   if is_round(b)]
-        round_greens = [b for b in valid_greens if is_round(b)]
-        self.flicker.update(img, round_reds, round_greens)
+        # 闪烁: 全部色块送入 (v7.1: 圆形+箭头都检测)
+        self.flicker.update(img, valid_reds, valid_greens)
 
         area_th = self._scaled_area(self.cfg.AREA_LIGHT_MIN)
 
@@ -409,42 +404,39 @@ class VisionDetector:
             raw_result = 'none'
             raw_conf = 0.0
 
-        # A通道二次验证: 红A>0, 绿A<0, 过滤颜色混淆(如红色图片被LAB误判为绿)
+        # A通道连续置信度 (v7.1: 不再一刀切, A值越接近0置信度越低)
         if raw_result == 'green' and valid_greens:
             try:
                 best = max(valid_greens, key=lambda b: b.area())
                 a_mean = img.get_statistics(roi=best.rect()).a_mean()
-                if a_mean > -10:  # A不够负 → 不是真正的绿色
-                    raw_result = 'none'
-                    raw_conf = 0.0
+                a_conf = max(0.0, min(1.0, a_mean / -15))  # A=-15→1.0, A=0→0
+                raw_conf *= a_conf
+                if raw_conf < 0.25:
+                    raw_result = 'none'; raw_conf = 0.0
             except Exception: pass
         elif raw_result == 'red' and valid_reds:
             try:
                 best = max(valid_reds, key=lambda b: b.area())
                 a_mean = img.get_statistics(roi=best.rect()).a_mean()
-                if a_mean < 10:   # A不够正 → 不是真正的红色
-                    raw_result = 'none'
-                    raw_conf = 0.0
+                a_conf = max(0.0, min(1.0, a_mean / 15))   # A=15→1.0, A=0→0
+                raw_conf *= a_conf
+                if raw_conf < 0.25:
+                    raw_result = 'none'; raw_conf = 0.0
             except Exception: pass
 
-        # ★ v6: 闪烁加成 — 调节置信度
+        # 闪烁必需 (v7.1: 无闪烁→丢弃, 不单是加减分)
         if raw_result == 'red':
             is_flicker, self.flicker_red_cv = self.flicker.is_flickering_red()
-            raw_conf += self.flicker.flicker_boost('red')
-            raw_conf = max(0.0, min(1.0, raw_conf))
+            if not is_flicker:
+                raw_result = 'none'; raw_conf = 0.0
         elif raw_result == 'green':
             is_flicker, self.flicker_green_cv = self.flicker.is_flickering_green()
-            raw_conf += self.flicker.flicker_boost('green')
-            raw_conf = max(0.0, min(1.0, raw_conf))
+            if not is_flicker:
+                raw_result = 'none'; raw_conf = 0.0
 
-        result, self.light_confidence = self._tf_light.update(raw_result,
-                                                               raw_conf)
+        result, self.light_confidence = self._tf_light.update(
+            raw_result, raw_conf)
         return result if result is not None else 'none'
-
-    # ====================================================================
-    # 斑马线 ★ v6: + 消失预测
-    # ====================================================================
-
     def detect_crosswalk(self, img):
         """返回: (is_crosswalk, offset_x)"""
 
