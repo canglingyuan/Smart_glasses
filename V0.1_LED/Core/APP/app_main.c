@@ -12,8 +12,14 @@
 
 /* ---- 全局状态 ---- */
 char last_openmv_cmd[32] = "NONE";
+uint32_t omv_last_tick = 0;  /* 最后一次收到 OpenMV 指令的时刻 */
 uint8_t system_ready = 0;
 static uint8_t display_mode = 0;
+
+/* 按键状态（文件作用域） */
+static uint32_t btn_last_tick = 0;
+static uint8_t  btn_last_st   = 0;
+static uint32_t btn_press_tick = 0;
 
 /* ---- 外部引用 ---- */
 extern UART_HandleTypeDef huart1;
@@ -35,15 +41,7 @@ void APP_Init(void)
     OPENMV_Init();
     HCSR04_Init();
 
-    /* 提前给 OpenMV 发数据，帮它通过自检 */
-    {
-        extern UART_HandleTypeDef huart3;
-        for (int i = 0; i < 3; i++) {
-            char buf[80];
-            snprintf(buf, sizeof(buf), "D:150\nTOF:500\nIMU:0,0,16000,0,0,0\nBAT:3.9\n");
-            HAL_UART_Transmit(&huart3, (uint8_t*)buf, strlen(buf), 100);
-        }
-    }
+    /* 假数据已关闭 — OpenMV 联调期间不需要 STM32 发传感器数据 */
 
     MPU6050_Init();
     Posture_Init();
@@ -108,6 +106,7 @@ void APP_Run(void)
             Power_SetLevel(1);
             printf("[L3] Exit -> L1 (button)\n");
             while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET);  // 等松手
+            btn_last_st = 0; btn_press_tick = 0; btn_last_tick = 0;
         }
 
         /* 姿态唤醒：每10次(~2.5s)快读MPU判运动 */
@@ -127,6 +126,7 @@ void APP_Run(void)
                         Power_OnUserActivity();
                         Power_SetLevel(1);
                         printf("[L3] Exit -> L1 (motion)\n");
+                        btn_last_st = 0; btn_press_tick = 0; btn_last_tick = 0;
                     }
                 }
             }
@@ -153,42 +153,58 @@ void APP_Run(void)
     if (first_ready) { first_ready = 0; Power_ResetActivityTimer(); }
 
     /* ---- 按键处理 ---- */
-    static uint32_t last_btn = 0;
-    static uint8_t last_btn_state = 0, long_press_handled = 0;
-    static uint32_t press_start = 0;
+    {
+        static uint8_t  stable_cnt = 0;
+        static uint8_t  stable_val = 0;
+        uint8_t raw = (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET);
 
-    if (HAL_GetTick() - last_btn > 50) {
-        uint8_t st = (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET);
-        if (st == last_btn_state) {
-            if (st && !long_press_handled && press_start > 0 && (HAL_GetTick() - press_start) > 3000) {
-                long_press_handled = 1;
-                printf("[BTN] Entering deep sleep...\n");
-                SYN6288_Speak("[v14]休眠模式");
-                OLED_Sleep();
-                __HAL_RTC_WAKEUPTIMER_CLEAR_FLAG(&hrtc, RTC_FLAG_WUTF);
-                while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)
-                { HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI); SystemClock_Config(); }
-                uint32_t loops = 0;
-                while (1) {
-                    HAL_SuspendTick(); HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
-                    SystemClock_Config(); HAL_ResumeTick();
-                    if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET) { if (++loops > 48) break; }
-                    else loops = 0;
+        if (raw == stable_val) {
+            if (++stable_cnt >= 2) {
+                /* 连续 2 次一致 → 确认状态 */
+                uint8_t st = stable_val;
+                if (st == btn_last_st) {
+                if (st && btn_press_tick > 0 && (HAL_GetTick() - btn_press_tick) > 3000) {
+                    printf("[BTN] Entering deep sleep...\n");
+                    SYN6288_Speak("[v14]休眠模式");
+                    OLED_Sleep();
+                    while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET);
+                    SystemClock_Config();
+                    uint32_t loops = 0;
+                    while (1) {
+                        HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+                        SystemClock_Config();
+                        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET) { if (++loops > 48) break; }
+                        else loops = 0;
+                    }
+                    while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET);
+                    SystemClock_Config();
+                    OLED_Init();
+                    SYN6288_Speak("[v14]系统已唤醒");
+                    HAL_Delay(2500);
+                    Power_ResetActivityTimer();
+                    printf("[BTN] Woke up from deep sleep\n");
+                } else if (!st && btn_press_tick > 0) {
+                    display_mode = !display_mode;
+                    Power_OnUserActivity();
+                    btn_press_tick = 0;
                 }
-                while (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET);
-                SystemClock_Config(); HAL_ResumeTick();
-                HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 128, RTC_WAKEUPCLOCK_RTCCLK_DIV16, 0);
-                OLED_Init();
-                SYN6288_Speak("[v14]系统已唤醒");
-                HAL_Delay(2500);
-                Power_ResetActivityTimer();
-                printf("[BTN] Woke up from deep sleep\n");
-            } else if (!st) {
-                if (press_start > 0 && !long_press_handled) { display_mode = !display_mode; Power_OnUserActivity(); }
-                press_start = 0; long_press_handled = 0;
+            } else {
+                if (st) {
+                    btn_press_tick = HAL_GetTick();
+                } else if (btn_press_tick > 0) {
+                    /* 松手即切，不等去抖 */
+                    display_mode = !display_mode;
+                    Power_OnUserActivity();
+                    btn_press_tick = 0;
+                }
             }
-        } else { if (st) { press_start = HAL_GetTick(); long_press_handled = 0; } }
-        last_btn_state = st; last_btn = HAL_GetTick();
+            btn_last_st = st;
+            btn_last_tick = HAL_GetTick();
+        }
+        } else {
+            stable_cnt = 1;
+            stable_val = raw;
+        }
     }
 
     /* ---- 传感器数据 ---- */
@@ -217,26 +233,78 @@ void APP_Run(void)
     if (Power_IsDisplayOn()) {
         OLED_Clear();
         if (display_mode == 0) {
-            OLED_DrawString(0, 0, "Smart Glass", Font_6x8, 1);
+            /* -- 主界面 -- */
+            char buf[24];
             {
-                const char* lvl = dynamic_level == 1 ? "L1 Active" :
-                                  dynamic_level == 2 ? "L2 Standby" : "L3 Sleep";
-                OLED_DrawString(0, 16, (char*)lvl, Font_6x8, 1);
+                char title[20];
+                snprintf(title, sizeof(title), "Smart Glass L%d", dynamic_level);
+                OLED_DrawString(0, 0, title, Font_6x8, 1);
             }
-            const char* scene = "Clear Path";
-            if (fusion.level >= RISK_CRITICAL) scene = "DANGER!";
-            else if (fusion.level >= RISK_HIGH) scene = "Caution";
-            else if (fusion.level >= RISK_MEDIUM) scene = "Warning";
-            OLED_DrawString(0, 32, (char*)scene, Font_6x8, 1);
-            char bbuf[16];
-            snprintf(bbuf, sizeof(bbuf), "Batt: %d%%", Battery_GetPct());
-            OLED_DrawString(0, 48, bbuf, Font_6x8, 1);
+
+            /* 行1: 当前遭遇（按融合等级排序） */
+            const char* scene = "Clear";
+            const char* cmd   = last_openmv_cmd;
+            /* ── CRITICAL ── */
+            if      (fusion.level >= RISK_CRITICAL)             scene = "DANGER!";
+            /* ── HIGH ── */
+            else if (strcmp(cmd, "RED")            == 0) scene = "RED Light";
+            else if (strcmp(cmd, "OVERHEAD")       == 0) scene = "Overhead!";
+            else if (strcmp(cmd, "LATERAL")        == 0) scene = "Lateral";
+            else if (strcmp(cmd, "CROSSWALK_END")  == 0) scene = "Crosswalk End";
+            else if (strcmp(cmd, "STAIRS_DOWN")    == 0) scene = "Stairs Down";
+            else if (strcmp(cmd, "GREEN")          == 0) scene = "GREEN";
+            else if (fusion.level >= RISK_HIGH)               scene = "Caution";
+            /* ── MEDIUM ── */
+            else if (strcmp(cmd, "OBSTACLE")       == 0) scene = "Obstacle";
+            else if (strcmp(cmd, "PIT")            == 0) scene = "Pit Ahead";
+            else if (strcmp(cmd, "BUMP")           == 0) scene = "Bump Ahead";
+            else if (strcmp(cmd, "OBSTACLE_NEAR")  == 0) scene = "Obstacle Near";
+            else if (strcmp(cmd, "CROSSWALK_NEAR") == 0) scene = "Crosswalk Near";
+            else if (strcmp(cmd, "TACTILE_WARN")   == 0) scene = "Off Tactile";
+            else if (fusion.level >= RISK_MEDIUM)             scene = "Warning";
+            /* ── LOW / INFO ── */
+            else if (strcmp(cmd, "ZEBRA")          == 0) scene = "Crosswalk";
+            else if (strcmp(cmd, "STAIRS_UP")      == 0) scene = "Stairs Up";
+            else if (strcmp(cmd, "TACTILE")        == 0) scene = "On Tactile";
+            else if (strcmp(cmd, "LEFT")           == 0) scene = "Turn Left";
+            else if (strcmp(cmd, "RIGHT")          == 0) scene = "Turn Right";
+            OLED_DrawString(0, 16, (char*)scene, Font_6x8, 1);
+
+            /* 行2: 超声波距离 */
+            snprintf(buf, sizeof(buf), "%dcm", (int)filtered);
+            OLED_DrawString(0, 32, buf, Font_6x8, 1);
+
+            /* 行3: 电池 */
+            snprintf(buf, sizeof(buf), "Batt: %d%%", Battery_GetPct());
+            OLED_DrawString(0, 48, buf, Font_6x8, 1);
+
         } else {
+            /* -- 调试界面 -- */
             char buf[48];
-            snprintf(buf, sizeof(buf), "DEBUG MODE  L%d", dynamic_level);
+
+            /* 行0: 传感器数据 */
+            int tof0 = (tof && tof[0] > 10) ? tof[0] / 10 : 0;
+            snprintf(buf, sizeof(buf), "D:%d T:%d P:%d",
+                     (int)filtered, tof0, pitch_int);
             OLED_DrawString(0, 0, buf, Font_6x8, 1);
-            snprintf(buf, sizeof(buf), "D:%dcm P:%d", (int)filtered, pitch_int);
-            OLED_DrawString(0, 40, buf, Font_6x8, 1);
+
+            /* 行1: 传感器状态 */
+            const char* mpu = system_ready ? "OK" : "--";
+            const char* tus = (tof != NULL) ? "OK" : "--";
+            const char* us  = (filtered > 0) ? "OK" : "--";
+            snprintf(buf, sizeof(buf), "MPU:%s TOF:%s US:%s", mpu, tus, us);
+            OLED_DrawString(0, 16, buf, Font_6x8, 1);
+
+            /* 行2: 模块状态 + 功耗等级 */
+            const char* omv = (strcmp(last_openmv_cmd, "NONE") != 0)
+                              ? last_openmv_cmd : "--";
+            snprintf(buf, sizeof(buf), "SYN:OK MV:%s L%d", omv, dynamic_level);
+            OLED_DrawString(0, 32, buf, Font_6x8, 1);
+
+            /* 行3: 电池 + 运行时间 */
+            snprintf(buf, sizeof(buf), "B:%d%% %lus",
+                     Battery_GetPct(), HAL_GetTick() / 1000);
+            OLED_DrawString(0, 48, buf, Font_6x8, 1);
         }
         OLED_UpdateScreen();
     }

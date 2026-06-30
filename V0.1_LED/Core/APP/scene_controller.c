@@ -62,9 +62,9 @@ void SceneController_Run(int16_t pitch_deg)
     static uint8_t motion_cnt = 0;
     static uint32_t still_start = 0;
 
-    /* 运动唤醒 */
-    if (pitch_chg > 15) {
-        if (++motion_cnt >= 3) {
+    /* 运动唤醒（阈值 10° 连续 2 帧） */
+    if (pitch_chg > 10) {
+        if (++motion_cnt >= 2) {
             if (dynamic_level != 1) auto_sleep_done = 1;
             Power_SetLevel(1);
             Power_OnUserActivity();
@@ -74,19 +74,20 @@ void SceneController_Run(int16_t pitch_deg)
         motion_cnt = 0;
     }
 
-    /* 自动休眠（仅首次） */
+    /* 自动休眠（校准完成后才生效） */
     static uint32_t boot_time = 0;
     if (boot_time == 0) boot_time = HAL_GetTick();
-    if (!auto_sleep_done && (HAL_GetTick() - boot_time) > 15000) {
-        if (pitch_chg > 15) {
+    extern uint8_t system_ready;
+    if (system_ready && !auto_sleep_done && (HAL_GetTick() - boot_time) > 10000) {
+        if (pitch_chg > 10) {
             still_start = 0;
         } else {
             if (still_start == 0) still_start = HAL_GetTick();
             uint32_t elapsed = HAL_GetTick() - still_start;
-            if (dynamic_level == 1 && elapsed > 5000) {
+            if (dynamic_level == 1 && elapsed > 15000) {
                 Power_SetLevel(2);
                 still_start = HAL_GetTick();
-            } else if (dynamic_level == 2 && elapsed > 10000) {
+            } else if (dynamic_level == 2 && elapsed > 15000) {
                 Power_SetLevel(3);
             }
         }

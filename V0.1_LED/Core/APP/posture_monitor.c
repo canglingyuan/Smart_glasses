@@ -105,7 +105,7 @@ void Posture_Update(int16_t pitch_deg)
         {
             calibrated_pitch = pitch_deg;
             calib_done = 1;
-            system_ready = 1;
+            /* system_ready 延迟到语音播报之后 */
             printf("Calibration done! (stable for 3s) Base pitch = %d deg\n",
                    calibrated_pitch);
         }
@@ -118,6 +118,7 @@ void Posture_Update(int16_t pitch_deg)
         HAL_Delay(500);   // 等待之前语音播报结束
         SYN6288_Speak("[v14]姿态初始化完成");
         calib_speech_done = 1;
+        system_ready = 1;  // 播完才开放 OpenMV 指令
     }
 
     // ================== 正常工作阶段 ==================

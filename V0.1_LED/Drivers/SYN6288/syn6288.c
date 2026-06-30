@@ -11,19 +11,22 @@ void SYN6288_Init(uint32_t baudrate)
 
 void SYN6288_Speak(char *text)
 {
-    /* 防止播报被打断——距上次播报至少 2.5 秒 */
+    /* 防止播报被打断——距上次播报至少 3 秒 */
     static uint32_t last_speak = 0;
     uint32_t now = HAL_GetTick();
-    if (now - last_speak < 1500) {
-        HAL_Delay(1500 - (uint16_t)(now - last_speak));
+    if (now - last_speak < 3000) {
+        HAL_Delay(3000 - (uint16_t)(now - last_speak));
     }
     last_speak = HAL_GetTick();
 
     uint8_t frame[256];
     char full_text[256];
 
-    // 在用户文本前加上音量控制标记 [v16]，设置最大音量
-    snprintf(full_text, sizeof(full_text), "[v16]%s", text);
+    /* 只在文本没有音量标记时加 [v16]，避免 [v16][v14] 重复 */
+    if (text[0] == '[' && text[1] == 'v')
+        snprintf(full_text, sizeof(full_text), "%s", text);
+    else
+        snprintf(full_text, sizeof(full_text), "[v16]%s", text);
 
     uint8_t text_len = strlen(full_text);
     uint8_t data_len = text_len + 3;   // 命令字1B + 命令参数1B + 文本 + 校验1B

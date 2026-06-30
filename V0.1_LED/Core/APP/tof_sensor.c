@@ -59,15 +59,15 @@ int16_t* TOF_GetData(void)
     uint8_t retry = 0;
     uint8_t st;
 
-    // 重试机制：最多尝试 10 次，每次间隔 20ms
-    while (retry < 10) {
+    // 重试机制：最多尝试 3 次，每次间隔 5ms
+    while (retry < 3) {
         st = vl53l5cx_check_data_ready(&Dev, &is_ready);
         if (st == VL53L5CX_STATUS_OK && is_ready) break;
         retry++;
-        VL53L5CX_PlatformWaitMs(20);
+        VL53L5CX_PlatformWaitMs(5);
     }
 
-    if (retry >= 10) {
+    if (retry >= 3) {
         return NULL;
     }
 

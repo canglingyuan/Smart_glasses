@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "STM32U5 Debug (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "gdbPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2021.10\\bin\\arm-none-eabi-gdb.exe",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/V0.1_LED.elf",
+            "servertype": "openocd",
+            "device": "STM32U5A5ZJ",
+            "configFiles": [
+                "interface/stlink.cfg",
+                "target/stm32u5x.cfg"
+            ],
+            "overrideLaunchCommands": [
+                "set mem inaccessible-by-default off",
+                "monitor halt",
+                "load",
+                "monitor reset init"
+            ],
+            "postLaunchCommands": [
+                "break main",
+                "continue"
+            ]
+        }
+    ]
+}
