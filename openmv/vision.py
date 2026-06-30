@@ -1,4 +1,4 @@
-"""
+﻿"""
 智能助盲眼镜 v7.0 · 视觉检测器
 ===============================
 所有基于摄像头的视觉检测: 红绿灯、斑马线、障碍物、坑洞、楼梯、头顶、盲道。
@@ -145,7 +145,7 @@ class FlickerDetector:
         if is_flicker:
             return min(1.0, cv / (self.cfg.FLICKER_CV_THRESH * 3))
         else:
-            return -min(0.5, (self.cfg.FLICKER_CV_THRESH - cv) /
+            return -min(0.2, (self.cfg.FLICKER_CV_THRESH - cv) /
                         max(self.cfg.FLICKER_CV_THRESH, 0.001) * 0.5)
 
 
@@ -375,7 +375,7 @@ class VisionDetector:
         max_red_all   = max([b.area() for b in valid_reds]) if valid_reds else 0
         max_green_all = max([b.area() for b in valid_greens]) if valid_greens else 0
 
-        # 亮度验证: 交通灯应明显亮于周围
+        # 亮度验证: 交通灯自发光应明显亮于周围背景
         roi_l = min(img.get_statistics(roi=light_roi).l_mean(), 75)  # 上限防止强光下阈值溢出
         if max_red_all > 0:
             try:
