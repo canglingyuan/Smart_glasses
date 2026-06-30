@@ -226,4 +226,4 @@ class Config:
     DEFAULT_FORWARD_DIST  = 300.0    # 默认前向距离 (cm)
     DEFAULT_DIST_INIT     = 300      # 距离缓冲区初始值
     OVERHEAD_RISK_DIST    = 80       # 头顶风险距离阈值 (cm)
-        LATERAL_DIST_THRESH   = 100      # 横向拦截物距离阈值 (cm)
+    LATERAL_DIST_THRESH   = 100      # 横向拦截物距离阈值 (cm)
