@@ -9,6 +9,10 @@ extern uint8_t dynamic_level;
 
 extern void SystemClock_Config(void);
 extern RTC_HandleTypeDef hrtc;
+extern volatile uint32_t uwTick;
+
+/* 唤醒计数器 — Stop 后递增，供按键去抖使用 */
+volatile uint32_t g_wake_count = 0;
 
 // 运行时动态功耗级别，默认 L1
 uint8_t dynamic_level = 1;
@@ -41,12 +45,12 @@ void Power_SetLevel(uint8_t level)
 
 void Power_EnterLowPower(void)
 {
-    // 30 秒无操作自动熄屏
-    if (display_on && (HAL_GetTick() - last_activity > DISPLAY_TIMEOUT_MS)) {
-        display_on = 0;
-        OLED_Sleep();
-        printf("[PWR] Display timeout - OLED off\n");
-    }
+    // 30 秒无操作自动熄屏 — 暂时禁用
+    // if (display_on && (HAL_GetTick() - last_activity > DISPLAY_TIMEOUT_MS)) {
+    //     display_on = 0;
+    //     OLED_Sleep();
+    //     printf("[PWR] Display timeout - OLED off\n");
+    // }
 
     // 校准期间强制走 Sleep，确保 tick 正常增长
     extern uint8_t system_ready;
@@ -70,6 +74,7 @@ void Power_EnterLowPower(void)
         HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
         SystemClock_Config();
         HAL_ResumeTick();
+        uwTick += 62;  /* 补偿 Stop 时间 */
         break;
 
     case 3:
@@ -84,6 +89,7 @@ void Power_EnterLowPower(void)
         HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
         SystemClock_Config();
         HAL_ResumeTick();
+        uwTick += 250; /* 补偿 Stop 时间 */
         HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 128, RTC_WAKEUPCLOCK_RTCCLK_DIV16, 0); // 恢复 62.5ms
         l3_wake_count++;
         if (l3_wake_count % 40 == 0)
@@ -91,6 +97,7 @@ void Power_EnterLowPower(void)
         break;
     }
     }
+    g_wake_count++;  /* 所有等级都递增，供按键去抖 */
 }
 
 void Power_OnUserActivity(void)

@@ -115,15 +115,21 @@ FusionResult SensorFusion_Run(
     /* ---- 低头提醒（在 posture_monitor 独立处理，此处不重复）---- */
 
     /* ---- OpenMV ---- */
-    if (openmv_cmd && strcmp(openmv_cmd, "RED") == 0) {
-        result.level = RISK_HIGH; result.message = "红灯"; goto check_repeat;
-    }
-    if (openmv_cmd && strcmp(openmv_cmd, "OBSTACLE") == 0) {
-        result.level = RISK_MEDIUM; result.message = "绕行"; goto check_repeat;
-    }
-    if (openmv_cmd && strcmp(openmv_cmd, "GREEN") == 0) {
-        result.level = RISK_LOW; result.message = "绿灯"; goto check_repeat;
-    }
+    if (!openmv_cmd) goto done;
+    if      (strcmp(openmv_cmd, "RED")            == 0) { result.level = RISK_HIGH;   result.message = "红灯";       goto check_repeat; }
+    else if (strcmp(openmv_cmd, "OVERHEAD")       == 0) { result.level = RISK_HIGH;   result.message = "头顶障碍";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "LATERAL")        == 0) { result.level = RISK_HIGH;   result.message = "横向拦截";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "CROSSWALK_END")  == 0) { result.level = RISK_HIGH;   result.message = "斑马线结束"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "STAIRS_DOWN")    == 0) { result.level = RISK_HIGH;   result.message = "下楼梯";     goto check_repeat; }
+    else if (strcmp(openmv_cmd, "OBSTACLE")       == 0) { result.level = RISK_MEDIUM; result.message = "前方障碍物"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "PIT")            == 0) { result.level = RISK_MEDIUM; result.message = "前方有坑洼"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "BUMP")           == 0) { result.level = RISK_MEDIUM; result.message = "路面凸起";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "CROSSWALK_NEAR") == 0) { result.level = RISK_MEDIUM; result.message = "即将出斑马线"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "TACTILE_WARN")   == 0) { result.level = RISK_MEDIUM; result.message = "偏离盲道";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "OBSTACLE_NEAR")  == 0) { result.level = RISK_MEDIUM; result.message = "前方障碍物"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "GREEN")          == 0) { result.level = RISK_HIGH;   result.message = "绿灯";       goto check_repeat; }
+    else if (strcmp(openmv_cmd, "STAIRS_UP")      == 0) { result.level = RISK_LOW;    result.message = "上楼梯";     goto check_repeat; }
+done:
 
     result.level = RISK_NONE;
     return result;
