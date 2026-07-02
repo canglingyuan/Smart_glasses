@@ -5,8 +5,7 @@
 
 v6 新增 (不训练模型):
   1. 红绿灯闪烁频率检测 — 利用 50Hz 电网 LED 闪烁区分真红绿灯 vs DC 光源
-  2. 斑马线消失预测 — 检测斑马线末端 + 道路边缘汇合点 → 临界告警
-  3. 盲道视觉追踪 — Hough 线检测盲道走向 → "偏左/偏右/在中间"方向引导
+  2. 盲道视觉追踪 — Hough 线检测盲道走向 → 偏左/偏右/在中间方向引导
 
 v5 保留:
   1. TemporalFilter — 多数投票 + 迟滞，消除检测闪烁
@@ -21,22 +20,7 @@ import math
 
 from temporal_filter import TemporalFilter
 
-# v7.0: TFLite model loading
-_tactile_model_file = None  # 模型文件名, 用 tf.classify() 一步式
 
-try:
-    import tf
-    # 测试 tf.load 是否可用
-    _tactile_model_file = 'tactile_binary_model.tflite'
-    print("[ML] 盲道模型已就绪 (tf.classify)")
-except Exception:
-    _tactile_model_file = None
-    print("[ML] tf模块不可用, 盲道纯Hough")
-
-
-# ============================================================================
-# 时间滤波器 (v5 保留 — 多帧一致性滤波)
-# ============================================================================
 
 
 # ============================================================================
@@ -63,48 +47,42 @@ class FlickerDetector:
         self._red_count = 0
         self._green_count = 0
 
+    def _update_channel(self, img, blobs, history, count):
+        """更新单个颜色通道的亮度历史。返回 (new_count)。
+        blob 列表为空时递减计数，使 count 能正确反映有效帧占比。"""
+        idx_prev = self._idx
+        if blobs:
+            largest = max(blobs, key=lambda b: b.area())
+            if largest.area() >= self.cfg.FLICKER_MIN_BLOB_AREA:
+                try:
+                    stats = img.get_statistics(roi=largest.rect())
+                    history[self._idx] = stats.l_mean()
+                    return min(count + 1, self.cfg.FLICKER_HISTORY_SIZE)
+                except Exception:
+                    history[self._idx] = history[idx_prev]
+                    return count
+            else:
+                history[self._idx] = history[idx_prev]
+                return max(0, count - 1)
+        else:
+            history[self._idx] = history[idx_prev]
+            return max(0, count - 1)
+
     def update(self, img, red_blobs, green_blobs):
         """记录本帧红/绿候选区域的亮度。blob 列表可为空。"""
-        idx_prev = self._idx
         self._idx = (self._idx + 1) % self.cfg.FLICKER_HISTORY_SIZE
 
-        # ── 红色通道 ──
-        if red_blobs:
-            largest = max(red_blobs, key=lambda b: b.area())
-            if largest.area() >= self.cfg.FLICKER_MIN_BLOB_AREA:
-                try:
-                    stats = img.get_statistics(roi=largest.rect())
-                    self._red_history[self._idx] = stats.l_mean()
-                    self._red_count = min(self._red_count + 1,
-                                          self.cfg.FLICKER_HISTORY_SIZE)
-                except Exception:
-                    self._red_history[self._idx] = self._red_history[idx_prev]
-            else:
-                self._red_history[self._idx] = self._red_history[idx_prev]
-        else:
-            self._red_history[self._idx] = self._red_history[idx_prev]
+        self._red_count = self._update_channel(
+            img, red_blobs, self._red_history, self._red_count)
+        self._green_count = self._update_channel(
+            img, green_blobs, self._green_history, self._green_count)
 
-        # ── 绿色通道 ──
-        if green_blobs:
-            largest = max(green_blobs, key=lambda b: b.area())
-            if largest.area() >= self.cfg.FLICKER_MIN_BLOB_AREA:
-                try:
-                    stats = img.get_statistics(roi=largest.rect())
-                    self._green_history[self._idx] = stats.l_mean()
-                    self._green_count = min(self._green_count + 1,
-                                            self.cfg.FLICKER_HISTORY_SIZE)
-                except Exception:
-                    self._green_history[self._idx] = self._green_history[idx_prev]
-            else:
-                self._green_history[self._idx] = self._green_history[idx_prev]
-        else:
-            self._green_history[self._idx] = self._green_history[idx_prev]
-
-    @staticmethod
+    
+staticmethod
     def _compute_cv(history):
         """计算变异系数 CV = std / mean。返回 (cv, mean_val)。
-        跳过值为 0 的槽位 (未填充的初始值)。"""
-        valid = [v for v in history if v > 0]
+        用 v > 0.1 区分未填充初始槽位和真实暗帧。缓冲区满后所有值均有效。"""
+        valid = [v for v in history if v > 0.1]
         n = len(valid)
         if n < 3:                       # 至少 3 个有效样本
             return 0.0, 0.0
@@ -132,7 +110,7 @@ class FlickerDetector:
 
     def flicker_boost(self, color):
         """
-        返回闪烁确认的置信度加成 (-0.5 ~ 1.0)。
+        返回闪烁确认的置信度加成 (-0.2 ~ 1.0)。
         正数 = 确认闪烁 (真红绿灯)，负数 = DC 光源嫌疑 (降低置信度)。
         """
         if color == 'red':
@@ -145,14 +123,8 @@ class FlickerDetector:
         if is_flicker:
             return min(1.0, cv / (self.cfg.FLICKER_CV_THRESH * 3))
         else:
-            return -min(0.2, (self.cfg.FLICKER_CV_THRESH - cv) /
+            return -min(0.5, (self.cfg.FLICKER_CV_THRESH - cv) /
                         max(self.cfg.FLICKER_CV_THRESH, 0.001) * 0.5)
-
-
-
-# ============================================================================
-# ★ v6 新增: 盲道视觉追踪器
-# ============================================================================
 
 class TactileTracker:
     """
@@ -194,7 +166,7 @@ class TactileTracker:
 
         # 盲道中心偏移
         blob_cx = tactile_blob.cx()
-        offset_px = blob_cx - 160
+        offset_px = blob_cx - cfg.FRAME_CENTER_X
 
         # Hough 线检测盲道走向
         roi = tactile_blob.rect()
@@ -266,7 +238,7 @@ class VisionDetector:
         self._tf_obstacle  = TemporalFilter(hsize, confirm, 2)
         self._tf_lateral   = TemporalFilter(hsize, confirm, hyst)
         self._tf_pothole   = TemporalFilter(hsize, confirm, 5)
-        self._tf_stairs    = TemporalFilter(7, 0.5, 5)
+        self._tf_stairs    = TemporalFilter(cfg.STAIRS_TF_HISTORY_SIZE, cfg.STAIRS_TF_CONFIRM_RATIO, cfg.STAIRS_TF_HYSTERESIS)
         self._tf_overhead  = TemporalFilter(hsize, confirm, hyst)
         self._tf_turn      = TemporalFilter(hsize, 0.5, hyst)
 
@@ -295,6 +267,7 @@ class VisionDetector:
         self._brightness_offset = 0.0
         self._distance_scale = 1.0
         self._pitch_offset_y = 0       # ★ v6.2: 俯仰角导致的 ROI y 偏移
+        self._stair_ground_history = []  # 楼梯检测地面距离历史
 
     # ==================================================================
     # 自适应上下文
@@ -347,7 +320,7 @@ class VisionDetector:
     # ====================================================================
 
     def detect_traffic_light(self, img):
-        """v7.1: 箭头灯加入闪烁, 圆形收紧, A通道连续置信度, 闪烁必需"""
+        """v7.1: 圆形收紧, A通道连续置信度, 闪烁必需"""
         rx, _, rw, _ = self.cfg.ROI_LIGHT
         ry = max(0, self.cfg.ROI_LIGHT[1] + self._pitch_offset_y)
         rh = self.cfg.LIGHT_ROI_HEIGHT
@@ -358,15 +331,15 @@ class VisionDetector:
 
         reds = img.find_blobs(
             [red_th], roi=light_roi,
-            pixels_threshold=80, area_threshold=80, merge=True)
+            pixels_threshold=cfg.LIGHT_PIXELS_THRESHOLD, area_threshold=cfg.LIGHT_AREA_THRESHOLD, merge=True)
         greens = img.find_blobs(
             [green_th], roi=light_roi,
-            pixels_threshold=80, area_threshold=80, merge=True)
+            pixels_threshold=cfg.LIGHT_PIXELS_THRESHOLD, area_threshold=cfg.LIGHT_AREA_THRESHOLD, merge=True)
 
-        # 形状: 圆形 roundness>0.75, 人形 roundness<0.5 且 h>w*1.5 (箭头灯被排除)
-        def _is_round(b):   return b.roundness() > 0.75
-        def _is_person(b):  return b.roundness() < 0.5 and b.h() > b.w() * 1.5
-        def _valid(b):      return _is_round(b) or _is_person(b)
+        # 形状: 圆形 roundness>0.75 (满灯), 人形 0.2<roundness<0.55 且 1.2<h/w<2.0 (行人灯竖矩形, 排除箭头灯 h/w>2.0)
+        def _is_round(b):  return b.roundness() > 0.75
+        def _is_human(b):  return 0.2 < b.roundness() < 0.55 and 1.2 < b.h() / max(b.w(), 1) < 2.0
+        def _valid(b):     return _is_round(b) or _is_human(b)
 
         valid_reds   = [b for b in reds   if _valid(b)]
         valid_greens = [b for b in greens if _valid(b)]
@@ -374,7 +347,7 @@ class VisionDetector:
         max_red_all   = max([b.area() for b in valid_reds]) if valid_reds else 0
         max_green_all = max([b.area() for b in valid_greens]) if valid_greens else 0
 
-        # 亮度: 自发光必须亮于背景 *1.25, roi_l上限75防止强光失效
+        # 亮度: 自发光必须亮于背景 *1.25
         roi_l = min(img.get_statistics(roi=light_roi).l_mean(), 75)
         if max_red_all > 0:
             try:
@@ -389,7 +362,7 @@ class VisionDetector:
                     max_green_all = 0
             except Exception: pass
 
-        # 闪烁: 全部色块送入 (v7.1: 圆形+箭头都检测)
+        # 闪烁: 全部有效色块送入
         self.flicker.update(img, valid_reds, valid_greens)
 
         area_th = self._scaled_area(self.cfg.AREA_LIGHT_MIN)
@@ -404,27 +377,27 @@ class VisionDetector:
             raw_result = 'none'
             raw_conf = 0.0
 
-        # A通道连续置信度 (v7.1: 不再一刀切, A值越接近0置信度越低)
+        # A通道连续置信度: A越接近0置信度越低
         if raw_result == 'green' and valid_greens:
             try:
                 best = max(valid_greens, key=lambda b: b.area())
                 a_mean = img.get_statistics(roi=best.rect()).a_mean()
-                a_conf = max(0.0, min(1.0, a_mean / -15))  # A=-15→1.0, A=0→0
+                a_conf = max(0.0, min(1.0, a_mean / -cfg.LIGHT_A_CONF_THRESHOLD))
                 raw_conf *= a_conf
-                if raw_conf < 0.25:
+                if raw_conf < cfg.LIGHT_A_CONF_MIN:
                     raw_result = 'none'; raw_conf = 0.0
             except Exception: pass
         elif raw_result == 'red' and valid_reds:
             try:
                 best = max(valid_reds, key=lambda b: b.area())
                 a_mean = img.get_statistics(roi=best.rect()).a_mean()
-                a_conf = max(0.0, min(1.0, a_mean / 15))   # A=15→1.0, A=0→0
+                a_conf = max(0.0, min(1.0, a_mean / cfg.LIGHT_A_CONF_THRESHOLD))
                 raw_conf *= a_conf
-                if raw_conf < 0.25:
+                if raw_conf < cfg.LIGHT_A_CONF_MIN:
                     raw_result = 'none'; raw_conf = 0.0
             except Exception: pass
 
-        # 闪烁必需 (v7.1: 无闪烁→丢弃, 不单是加减分)
+        # 闪烁必需: 无闪烁直接丢弃
         if raw_result == 'red':
             is_flicker, self.flicker_red_cv = self.flicker.is_flickering_red()
             if not is_flicker:
@@ -465,7 +438,7 @@ class VisionDetector:
                             raw_result = True
                             x_centers = [b.cx() for b in stripes]
                             cross_center = sum(x_centers) / len(x_centers)
-                            raw_offset = int(cross_center - 160)
+                            raw_offset = int(cross_center - cfg.FRAME_CENTER_X)
                             stripe_conf = min(1.0, len(stripes) /
                                               (self.cfg.CROSSWALK_MIN_STRIPES * 2))
                             area_conf = min(1.0, ratio / (self.cfg.CROSSWALK_WHITE_RATIO * 2))
@@ -626,7 +599,7 @@ class VisionDetector:
 
         # ★ 方向判断: 地面距离突增→下楼, 平稳→上楼
         if raw_result == 'potential' and ground_dist > 0:
-            if not hasattr(self, '_stair_ground_history'):
+            if not self._stair_ground_history:
                 self._stair_ground_history = [ground_dist] * 5
             self._stair_ground_history.append(ground_dist)
             self._stair_ground_history.pop(0)
@@ -697,7 +670,7 @@ class VisionDetector:
 
             center_x = obstacle_blob.cx()
             if left_free and right_free:
-                raw_result = 'left' if center_x < 160 else 'right'
+                raw_result = 'left' if center_x < cfg.FRAME_CENTER_X else 'right'
                 raw_conf = 0.7
             elif left_free:
                 raw_result = 'left'
@@ -718,41 +691,10 @@ class VisionDetector:
     # ====================================================================
 
     def detect_tactile(self, img):
-        """
-        视觉盲道追踪。v6.3: tf.classify 一步式推理 + Hough 方向判断。
-        返回: (direction, offset_px, guidance_text)
-        """
-
-        global _tactile_model_file
-        is_tactile = False
-        ai_ok = False
-        if _tactile_model_file:
-            try:
-                crop = img.copy(roi=self.cfg.ROI_TACTILE)
-                crop = crop.resize(self.cfg.TACTILE_MODEL_INPUT_SIZE, self.cfg.TACTILE_MODEL_INPUT_SIZE)
-                crop_gray = crop.to_grayscale()
-                results = tf.classify(_tactile_model_file, crop_gray)
-                if results:
-                    scores = results[0].classification_output()
-                    is_tactile = scores[1] > self.cfg.TACTILE_ML_CONF_THRESHOLD if len(scores) > 1 else scores[0] > 0.5
-                    ai_ok = True
-            except Exception:
-                pass
-
-        if ai_ok:
-            if is_tactile:
-                direction, offset_px, guidance = self.tactile.track(img)
-                if direction == 'none':
-                    pass  # AI判断有盲道但Hough无法确定方向，保留none避免误引导
-            else:
-                direction = 'none'
-                offset_px = 0
-                guidance = ''
-        else:
-            # AI不可用, 纯Hough回退
-            direction, offset_px, guidance = self.tactile.track(img)
-
+        """视觉盲道追踪 纯Hough方向判断。"""
+        direction, offset_px, guidance = self.tactile.track(img)
         self.tactile_direction = direction
         self.tactile_offset = offset_px
         self.tactile_guidance = guidance
         return direction, offset_px, guidance
+

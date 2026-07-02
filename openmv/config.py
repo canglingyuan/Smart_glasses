@@ -1,4 +1,4 @@
-# 智能助盲眼镜 v7.0 · 配置类
+﻿# 智能助盲眼镜 v7.0 · 配置类
 # 硬件: OpenMV H7 Plus + STM32U5 + ToF(VL53L) + 超声波 + IMU
 # 固件: OpenMV 4.8.0 / STM32 V0.1_LED
 
@@ -199,6 +199,20 @@ class Config:
     # -- 红绿灯 --
     LIGHT_ROI_HEIGHT         = 140    # 红绿灯 ROI 高度 (像素)
     LIGHT_AREA_CONF_DIVISOR  = 2.5    # 置信度 = max_area / (阈值 × 此系数)
+    # -- 红绿灯 (v7 收敛) --
+    LIGHT_PIXELS_THRESHOLD  = 80     # find_blobs 像素阈值
+    LIGHT_AREA_THRESHOLD    = 80     # find_blobs 面积阈值
+    LIGHT_A_CONF_THRESHOLD  = 15     # A 通道绝对均值阈值 (越远离0越可信)
+    LIGHT_A_CONF_MIN        = 0.25   # A 通道置信度最低截断
+
+    # -- 楼梯 --
+    STAIRS_TF_HISTORY_SIZE  = 7
+    STAIRS_TF_CONFIRM_RATIO = 0.5
+    STAIRS_TF_HYSTERESIS    = 5
+
+    # -- 画面中心 --
+    FRAME_CENTER_X = 160             # QVGA 320/2
+    FRAME_CENTER_Y = 120             # QVGA 240/2
 
     # -- 障碍物 --
     OBSTACLE_AREA_CONF_SCALE = 3      # 中距障碍物面积缩放系数
@@ -217,8 +231,6 @@ class Config:
     TURN_RIGHT_ROI = (270, 100, 50, 120)  # 右侧 ROI
 
     # -- 盲道 AI --
-    TACTILE_MODEL_INPUT_SIZE  = 64    # 模型输入尺寸 (像素)
-    TACTILE_ML_CONF_THRESHOLD = 0.5   # AI 判定置信度阈值
 
     # -- 默认距离 (传感器未就绪时的安全值) --
     OVERHEAD_RISK_DIST    = 80       # 头顶风险距离阈值 (cm)
