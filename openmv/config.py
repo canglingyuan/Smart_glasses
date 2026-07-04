@@ -1,6 +1,6 @@
-﻿# 智能助盲眼镜 v7.0 · 配置类
+﻿# 智能助盲眼镜 配置类
 # 硬件: OpenMV H7 Plus + STM32U5 + ToF(VL53L) + 超声波 + IMU
-# 固件: OpenMV 4.8.0 / STM32 V0.1_LED
+# 
 
 import sensor
 
@@ -25,7 +25,7 @@ class Config:
     WHITE_TH    = (65, 100, -15, 15, -25, 25) # 放宽L和B, 支持图片/屏幕中的斑马线
     OBSTACLE_TH = (0, 100, -128, 127, -128, 127)
 
-    # ---- 盲道黄色 (★ v6: 视觉盲道追踪) ----
+    # ---- 盲道黄色 (★ 视觉盲道追踪) ----
     TACTILE_YELLOW_TH = (55, 100, -12, 32, 18, 80)  # L降5, AB微扩
 
     # ---- ROI ----
@@ -34,7 +34,7 @@ class Config:
     ROI_GROUND    = (0, 160, 320, 80)
     ROI_LATERAL   = (0, 120, 320, 120)
     ROI_OVERHEAD  = (40, 0, 240, 80)
-    ROI_TACTILE   = (40, 140, 240, 100)   # ★ v6: 盲道追踪 ROI (画面下半部中央)
+    ROI_TACTILE   = (40, 140, 240, 100)   # ★ 盲道追踪 ROI (画面下半部中央)
 
     # ---- 距离 (cm) ----
     DIST_BLOCK   = 30

@@ -1,5 +1,5 @@
-"""
-智能助盲眼镜 v7.0 · 交互协议 (适配 STM32 V0.1_LED)
+﻿"""
+智能助盲眼镜 交互协议 (适配 STM32 V0.1_LED)
 ======================================================
 STM32 V0.1_LED 固件仅支持单向指令：RED/GREEN/ZEBRA/OBSTACLE/PIT/BUMP/NONE。
 不支持 ACK/NAK/BTN/ST 双向协议，不支持 BEEP/EMERG/LOWPOWER 等扩展指令。
@@ -61,7 +61,7 @@ class CommandSender:
 
 class InteractionManager:
     """
-    交互管理器 (v7.0 初赛版 — 适配 STM32 V0.1_LED)
+    交互管理器 (初赛版 — 适配 STM32 V0.1_LED)
 
     STM32 仅支持单向指令，无 ACK/NAK/BTN/ST。
     保留 line_handler 钩子和 send/send_raw/reset_dedup 接口。
@@ -119,9 +119,9 @@ class InteractionManager:
     # ==================================================================
 
     def update(self):
-        """v7.0: STM32 不支持 ACK/NAK，此方法为空"""
+        """: STM32 不支持 ACK/NAK，此方法为空"""
         pass
 
     def pop_button(self):
-        """v7.0: STM32 不支持 BTN 协议，始终返回 None"""
+        """: STM32 不支持 BTN 协议，始终返回 None"""
         return None

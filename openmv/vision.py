@@ -1,5 +1,5 @@
 ﻿"""
-智能助盲眼镜 v7.0 · 视觉检测器
+智能助盲眼镜 视觉检测器
 ===============================
 所有基于摄像头的视觉检测: 红绿灯、斑马线、障碍物、坑洞、楼梯、头顶、盲道。
 
@@ -20,29 +20,11 @@ import math
 
 from temporal_filter import TemporalFilter
 
-# v7.1: Edge Impulse model loading
-_tactile_model_file = None
-try:
-    import tf
-    _tactile_model_file = "trained.tflite"
-    print("[ML] Edge Impulse model loaded")
-except Exception:
-    _tactile_model_file = None
-    print("[ML] tf unavailable, Hough-only")
 
 
-# v7.1: Edge Impulse model loading
-_tactile_model_file = None
-try:
-    import tf
-    _tactile_model_file = "trained.tflite"
-    print("[ML] Edge Impulse model loaded")
-except Exception:
-    _tactile_model_file = None
-    print("[ML] tf unavailable, Hough-only")
 
 
-# v7.0: TFLite model loading
+# : TFLite model loading
 _tactile_model_file = None  # Edge Impulse trained model
 
 try:
@@ -297,7 +279,7 @@ class VisionDetector:
         # ── 自适应状态 (每帧由 update_frame_context 更新) ──
         self._brightness_offset = 0.0
         self._distance_scale = 1.0
-        self._pitch_offset_y = 0       # ★ v6.2: 俯仰角导致的 ROI y 偏移
+        self._pitch_offset_y = 0       # ★ 俯仰角导致的 ROI y 偏移
         self._stair_ground_history = []  # 楼梯检测地面距离历史
 
     # ==================================================================
@@ -319,7 +301,7 @@ class VisionDetector:
         else:
             self._distance_scale = 1.0
 
-        # ★ v6.2: 低头时红绿灯在画面中下移，ROI 跟随俯仰角偏移
+        # ★ 低头时红绿灯在画面中下移，ROI 跟随俯仰角偏移
         # 低头(负角度) → y 增大。每度约 3 像素
         self._pitch_offset_y = int(pitch_deg * self.cfg.PITCH_PIXEL_PER_DEGREE)
 
@@ -342,16 +324,16 @@ class VisionDetector:
         try:
             edges = img.find_edges(image.EDGE_CANNY, threshold=(30, 60))
             roi_edges = edges.copy(roi=blob.rect())
-            return roi_edges.mean()
+            return roi_edges.get_statistics().mean()
         except Exception:
             return 0
 
     # ====================================================================
-    # 红绿灯 ★ v6: + 闪烁频率确认
+    # 红绿灯 ★ + 闪烁频率确认
     # ====================================================================
 
     def detect_traffic_light(self, img):
-        """v7.1: 圆形收紧, A通道连续置信度, 闪烁必需"""
+        """: 圆形收紧, A通道连续置信度, 闪烁必需"""
         rx, _, rw, _ = self.cfg.ROI_LIGHT
         ry = max(0, self.cfg.ROI_LIGHT[1] + self._pitch_offset_y)
         rh = self.cfg.LIGHT_ROI_HEIGHT
@@ -604,7 +586,7 @@ class VisionDetector:
 
     def detect_stairs(self, img, avg_dist, ground_dist=0):
         """返回: 'up', 'down', 'potential', 'none'
-        v6.2: ToF 地面距离判断方向。距离突增→下楼, 距离平稳→上楼"""
+        ToF 地面距离判断方向。距离突增→下楼, 距离平稳→上楼"""
 
         effective_max = 200 * self._distance_scale
         if avg_dist > effective_max:
@@ -718,11 +700,11 @@ class VisionDetector:
         return result if result is not None else 'none'
 
     # ====================================================================
-    # ★ v6: 盲道追踪
+    # ★ 盲道追踪
     # ====================================================================
 
     def detect_tactile(self, img):
-        """v7.1: Edge Impulse ML + Hough 方向判断."""
+        """: Edge Impulse ML + Hough 方向判断."""
         global _tactile_model_file
 
         is_tactile = False

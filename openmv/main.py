@@ -1,4 +1,4 @@
-# 智能助盲眼镜 v7.0 · 入口
+﻿# 智能助盲眼镜 入口
 import pyb, time, sys
 
 try:
