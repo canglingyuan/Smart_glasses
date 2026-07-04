@@ -20,7 +20,38 @@ import math
 
 from temporal_filter import TemporalFilter
 
+# v7.1: Edge Impulse model loading
+_tactile_model_file = None
+try:
+    import tf
+    _tactile_model_file = "trained.tflite"
+    print("[ML] Edge Impulse model loaded")
+except Exception:
+    _tactile_model_file = None
+    print("[ML] tf unavailable, Hough-only")
 
+
+# v7.1: Edge Impulse model loading
+_tactile_model_file = None
+try:
+    import tf
+    _tactile_model_file = "trained.tflite"
+    print("[ML] Edge Impulse model loaded")
+except Exception:
+    _tactile_model_file = None
+    print("[ML] tf unavailable, Hough-only")
+
+
+# v7.0: TFLite model loading
+_tactile_model_file = None  # Edge Impulse trained model
+
+try:
+    import tf
+    _tactile_model_file = 'trained.tflite'
+    print("[ML] 盲道模型已就绪 (Edge Impulse)")
+except Exception:
+    _tactile_model_file = None
+    print("[ML] tf模块不可用, 盲道纯Hough")
 
 
 # ============================================================================
@@ -78,7 +109,7 @@ class FlickerDetector:
             img, green_blobs, self._green_history, self._green_count)
 
     
-staticmethod
+    @staticmethod
     def _compute_cv(history):
         """计算变异系数 CV = std / mean。返回 (cv, mean_val)。
         用 v > 0.1 区分未填充初始槽位和真实暗帧。缓冲区满后所有值均有效。"""
@@ -166,7 +197,7 @@ class TactileTracker:
 
         # 盲道中心偏移
         blob_cx = tactile_blob.cx()
-        offset_px = blob_cx - cfg.FRAME_CENTER_X
+        offset_px = blob_cx - 160
 
         # Hough 线检测盲道走向
         roi = tactile_blob.rect()
@@ -238,7 +269,7 @@ class VisionDetector:
         self._tf_obstacle  = TemporalFilter(hsize, confirm, 2)
         self._tf_lateral   = TemporalFilter(hsize, confirm, hyst)
         self._tf_pothole   = TemporalFilter(hsize, confirm, 5)
-        self._tf_stairs    = TemporalFilter(cfg.STAIRS_TF_HISTORY_SIZE, cfg.STAIRS_TF_CONFIRM_RATIO, cfg.STAIRS_TF_HYSTERESIS)
+        self._tf_stairs    = TemporalFilter(7, 0.5, 5)
         self._tf_overhead  = TemporalFilter(hsize, confirm, hyst)
         self._tf_turn      = TemporalFilter(hsize, 0.5, hyst)
 
@@ -331,10 +362,10 @@ class VisionDetector:
 
         reds = img.find_blobs(
             [red_th], roi=light_roi,
-            pixels_threshold=cfg.LIGHT_PIXELS_THRESHOLD, area_threshold=cfg.LIGHT_AREA_THRESHOLD, merge=True)
+            pixels_threshold=80, area_threshold=80, merge=True)
         greens = img.find_blobs(
             [green_th], roi=light_roi,
-            pixels_threshold=cfg.LIGHT_PIXELS_THRESHOLD, area_threshold=cfg.LIGHT_AREA_THRESHOLD, merge=True)
+            pixels_threshold=80, area_threshold=80, merge=True)
 
         # 形状: 圆形 roundness>0.75 (满灯), 人形 0.2<roundness<0.55 且 1.2<h/w<2.0 (行人灯竖矩形, 排除箭头灯 h/w>2.0)
         def _is_round(b):  return b.roundness() > 0.75
@@ -382,18 +413,18 @@ class VisionDetector:
             try:
                 best = max(valid_greens, key=lambda b: b.area())
                 a_mean = img.get_statistics(roi=best.rect()).a_mean()
-                a_conf = max(0.0, min(1.0, a_mean / -cfg.LIGHT_A_CONF_THRESHOLD))
+                a_conf = max(0.0, min(1.0, a_mean / -15))
                 raw_conf *= a_conf
-                if raw_conf < cfg.LIGHT_A_CONF_MIN:
+                if raw_conf < 0.25:
                     raw_result = 'none'; raw_conf = 0.0
             except Exception: pass
         elif raw_result == 'red' and valid_reds:
             try:
                 best = max(valid_reds, key=lambda b: b.area())
                 a_mean = img.get_statistics(roi=best.rect()).a_mean()
-                a_conf = max(0.0, min(1.0, a_mean / cfg.LIGHT_A_CONF_THRESHOLD))
+                a_conf = max(0.0, min(1.0, a_mean / 15))
                 raw_conf *= a_conf
-                if raw_conf < cfg.LIGHT_A_CONF_MIN:
+                if raw_conf < 0.25:
                     raw_result = 'none'; raw_conf = 0.0
             except Exception: pass
 
@@ -438,7 +469,7 @@ class VisionDetector:
                             raw_result = True
                             x_centers = [b.cx() for b in stripes]
                             cross_center = sum(x_centers) / len(x_centers)
-                            raw_offset = int(cross_center - cfg.FRAME_CENTER_X)
+                            raw_offset = int(cross_center - 160)
                             stripe_conf = min(1.0, len(stripes) /
                                               (self.cfg.CROSSWALK_MIN_STRIPES * 2))
                             area_conf = min(1.0, ratio / (self.cfg.CROSSWALK_WHITE_RATIO * 2))
@@ -670,7 +701,7 @@ class VisionDetector:
 
             center_x = obstacle_blob.cx()
             if left_free and right_free:
-                raw_result = 'left' if center_x < cfg.FRAME_CENTER_X else 'right'
+                raw_result = 'left' if center_x < 160 else 'right'
                 raw_conf = 0.7
             elif left_free:
                 raw_result = 'left'
@@ -691,8 +722,30 @@ class VisionDetector:
     # ====================================================================
 
     def detect_tactile(self, img):
-        """视觉盲道追踪 纯Hough方向判断。"""
-        direction, offset_px, guidance = self.tactile.track(img)
+        """v7.1: Edge Impulse ML + Hough 方向判断."""
+        global _tactile_model_file
+
+        is_tactile = False
+        if _tactile_model_file:
+            try:
+                crop = img.copy(roi=self.cfg.ROI_TACTILE)
+                crop_gray = crop.to_grayscale()
+                results = tf.classify(_tactile_model_file, crop_gray)
+                if results and len(results) > 0:
+                    scores = results[0].classification_output()
+                    is_tactile = scores[1] > 0.5 if len(scores) > 1 else scores[0] > 0.5
+            except Exception:
+                pass
+
+        if is_tactile:
+            direction, offset_px, guidance = self.tactile.track(img)
+            if direction == "none":
+                pass  # ML检测到盲道但Hough无法确定方向
+        else:
+            direction = "none"
+            offset_px = 0
+            guidance = ""
+
         self.tactile_direction = direction
         self.tactile_offset = offset_px
         self.tactile_guidance = guidance
