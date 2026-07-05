@@ -1,4 +1,4 @@
-﻿"""
+"""
 智能助盲眼镜 视觉检测器
 ===============================
 所有基于摄像头的视觉检测: 红绿灯、斑马线、障碍物、坑洞、楼梯、头顶、盲道。
@@ -24,16 +24,15 @@ from temporal_filter import TemporalFilter
 
 
 
-# : TFLite model loading
-_tactile_model_file = None  # Edge Impulse trained model
+_model_file = None  # Edge Impulse 4分类模型
 
 try:
     import tf
-    _tactile_model_file = 'trained.tflite'
-    print("[ML] 盲道模型已就绪 (Edge Impulse)")
+    _model_file = 'trained.tflite'
+    print("[ML] Edge Impulse 4分类模型已就绪")
 except Exception:
-    _tactile_model_file = None
-    print("[ML] tf模块不可用, 盲道纯Hough")
+    _model_file = None
+    print("[ML] tf模块不可用, 回退传统方法")
 
 
 # ============================================================================
@@ -596,6 +595,29 @@ class VisionDetector:
         raw_result = 'none'
         raw_conf = 0.0
 
+        # ML 4分类推断
+        global _model_file
+        if _model_file:
+            try:
+                crop = img.copy(roi=self.cfg.ROI_GROUND)
+                crop_gray = crop.to_grayscale()
+                results = tf.classify(_model_file, crop_gray)
+                if results and len(results) > 0:
+                    scores = results[0].classification_output()
+                    if len(scores) >= 4:
+                        conf_up = scores[3]
+                        conf_down = scores[0]
+                        if conf_up > 0.6:
+                            raw_result = 'up'; raw_conf = conf_up
+                        elif conf_down > 0.6:
+                            raw_result = 'down'; raw_conf = conf_down
+                        if raw_result != 'none':
+                            result, self.stairs_confidence = self._tf_stairs.update(
+                                raw_result, raw_conf)
+                            return result if result is not None else 'none'
+            except Exception:
+                pass
+
         # Hough 线检测台阶纹理
         lines = img.find_line_segments(
             roi=self.cfg.ROI_GROUND, merge_distance=10, max_theta_diff=15)
@@ -705,17 +727,17 @@ class VisionDetector:
 
     def detect_tactile(self, img):
         """: Edge Impulse ML + Hough 方向判断."""
-        global _tactile_model_file
+        global _model_file
 
         is_tactile = False
-        if _tactile_model_file:
+        if _model_file:
             try:
                 crop = img.copy(roi=self.cfg.ROI_TACTILE)
                 crop_gray = crop.to_grayscale()
-                results = tf.classify(_tactile_model_file, crop_gray)
+                results = tf.classify(_model_file, crop_gray)
                 if results and len(results) > 0:
                     scores = results[0].classification_output()
-                    is_tactile = scores[1] > 0.5 if len(scores) > 1 else scores[0] > 0.5
+                    is_tactile = scores[2] > 0.5 if len(scores) >= 3 else False
             except Exception:
                 pass
 
