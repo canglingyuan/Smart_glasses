@@ -1,4 +1,4 @@
-﻿# 智能助盲眼镜 Smart Glasses v7.0
+﻿# 智能助盲眼镜 Smart Glasses
 
 > 基于 STM32U5 + OpenMV 双MCU的嵌入式 AI 导盲系统 · 初赛版
 
