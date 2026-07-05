@@ -1,3 +1,4 @@
 ﻿[sandbox]
 workspace_root = "D:\\A_Project\\Smart_glasses"
-allow_write = ["D:\\AI_Code\\OpenMV_IDE\\openmv_project"]
+allow_write = ["D:\\AI_Code\\OpenMV_IDE\\openmv_project", "E:\\"]
+bash = "off"

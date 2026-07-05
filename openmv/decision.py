@@ -1,25 +1,14 @@
 """
-智能助盲眼镜 v7.0 · 综合决策引擎
+智能助盲眼镜 综合决策引擎
 =================================
-综合状态机与优先级仲裁 + 软投票紧急制动。
-
-优先级:
-  4 - 红灯 / 头顶障碍物
-  3 - 坑洞/凸起 / 大型障碍物 / 横向拦截物
-  2 - 盲道偏离 (视觉追踪)
-  1 - 斑马线 / 楼梯
-  0 - 绿灯 / 转弯建议
-
-注: 颜色传感器已移除，机动车道检测 (原P5) 和颜色传感器盲道检测 (原P2) 已删除。
-    盲道检测改用摄像头视觉追踪 (vision.py TactileTracker)。
+: 斑马线上下文 — 有斑马线时交通灯优先，无灯时检查偏移
 """
-
-
 class DecisionEngine:
-    """多事件优先级仲裁 + 软投票紧急制动"""
+    """多事件优先级仲裁"""
 
     def __init__(self, cfg):
         self.cfg = cfg
+        self._crosswalk_announced = False  # 是否已播报过斑马线
 
     def evaluate(self, avg_dist, light, crosswalk, cross_offset,
                  obstacle_blob, obstacle_area, lateral_line,
@@ -28,25 +17,59 @@ class DecisionEngine:
         """
         返回: (event_type, description, priority, turn_advice)
 
-        v7.0: 移除斑马线末端/接近/偏离, 只保留基本斑马线。
-            tactical_direction 替代原 TACTILE 检测 (来自 vision.py)。
+        : 斑马线上红灯优先级最高，无灯时检测偏移，
+              首次进入斑马线播报"斑马线区域"。
         """
-        events = []  # (priority, event_type, desc)
 
-        # 4 - 红灯
+        # ============================================================
+        # 斑马线上下文 — 交通灯优先，其次偏移，最后斑马线
+        # ============================================================
+        if crosswalk:
+            # 红灯 — 无论何时都是最高优先级
+            if light == 'red':
+                self._crosswalk_announced = True
+                return ('red', '红灯，请停下', 4, 'none')
+
+            # 绿灯 — 可通行
+            if light == 'green':
+                self._crosswalk_announced = True
+                return ('green', '绿灯可通行', 0, 'none')
+
+            # 无障碍物走斑马线 — 检查偏移
+            if obstacle_blob is None:
+                if cross_offset is not None and cross_offset != 0:
+                    if cross_offset < -20:
+                        self._crosswalk_announced = True
+                        return ('crosswalk_left', '偏左，请向右调整', 2, 'none')
+                    elif cross_offset > 20:
+                        self._crosswalk_announced = True
+                        return ('crosswalk_right', '偏右，请向左调整', 2, 'none')
+
+            # 走在斑马线中间 — 首次播报一次
+            if not self._crosswalk_announced:
+                self._crosswalk_announced = True
+                return ('crosswalk', '斑马线区域', 1, 'none')
+
+            # 已播报过，无事件 → 畅通
+            return ('clean', '', 0, 'none')
+
+        # 离开斑马线 — 重置状态
+        self._crosswalk_announced = False
+
+        # ============================================================
+        # 非斑马线 — 常规优先级仲裁
+        # ============================================================
+        events = []
+
+        # 红灯: 无斑马线时可能是车尾灯/广告牌，降级
         if light == 'red':
-            events.append((4, 'red', '红灯，请停下'))
+            events.append((2, 'red', '疑似红灯，请确认'))
 
-        # 4 - 头顶障碍物
         if overhead_danger and avg_dist < self.cfg.OVERHEAD_DIST_THRESH:
             events.append((4, 'overhead', '头顶障碍物，请低头'))
-
-        # 3 - 坑洞/凸起
         if pothole in ('pothole', 'bump'):
             desc = '危险！前方坑洞' if pothole == 'pothole' else '小心路面凸起'
             events.append((3, pothole, desc))
-
-        # 3 - 大型障碍物
         if (obstacle_blob is not None
                 and obstacle_area > self.cfg.AREA_BLOCK
                 and avg_dist < self.cfg.DIST_BLOCK):
@@ -55,33 +78,17 @@ class DecisionEngine:
                 and obstacle_area > self.cfg.AREA_CAUTION
                 and avg_dist < self.cfg.DIST_CAUTION):
             events.append((2, 'obstacle_near', '前方有障碍物%.0f厘米' % avg_dist))
-
-        # 3 - 横向拦截物
         if lateral_line and avg_dist < self.cfg.LATERAL_DIST_THRESH:
             events.append((3, 'lateral', '横向拦截物，请绕行'))
-
-        # 2 - 盲道偏离 (视觉追踪)
         if tactile_direction in ('left', 'right'):
             guidance = '偏左，请向右调整' if tactile_direction == 'left' else '偏右，请向左调整'
             events.append((2, 'tactile_warn', guidance))
-
-        # 1 - 斑马线
-        if crosswalk and light != 'red':
-            events.append((1, 'crosswalk', '斑马线区域'))
-
-        # 0 - 绿灯
-        if light == 'green':
-            events.append((0, 'green', '绿灯可通行'))
-
-        # 1 - 楼梯
         if stairs == 'up':
             events.append((1, 'stairs_up', '前方上楼梯'))
         elif stairs == 'down':
-            events.append((3, 'stairs_down', '危险！前方下楼梯'))  # 下楼是P3
+            events.append((3, 'stairs_down', '危险！前方下楼梯'))
         elif stairs == 'potential':
             events.append((1, 'stairs_up', '前方疑似楼梯'))
-
-        # 0 - 转弯建议
         if turn_advice in ('left', 'right', 'stop') and not events:
             direction_word = '左' if turn_advice == 'left' else '右'
             events.append((0, turn_advice, '请向%s绕行' % direction_word))
@@ -89,11 +96,11 @@ class DecisionEngine:
         if not events:
             return ('clean', '前方畅通', 0, 'none')
 
-        # 排序: 优先级降序, 同优先级按预定顺序 (obstacle > pothole > crosswalk_end > lateral > tactile > crosswalk > stairs > green > turn)
         event_order = {'obstacle': 0, 'lateral': 1, 'pothole': 2, 'bump': 2,
                        'obstacle_near': 5, 'tactile_warn': 6,
                        'stairs_down': 10,
-                       'crosswalk': 12, 'stairs_up': 13, 'green': 14, 'left': 15, 'right': 16}
+                       'crosswalk': 12, 'stairs_up': 13, 'green': 14,
+                       'left': 15, 'right': 16}
         events.sort(key=lambda x: (-x[0], event_order.get(x[1], 99)))
         top = events[0]
         return (top[1], top[2], top[0], turn_advice)
