@@ -2,7 +2,7 @@
 #include "main.h"
 #include <string.h>
 #include <stdlib.h>
-/*----------------- Èí¼ş I2C Òı½Å¶¨Òå -----------------*/
+/*----------------- è½¯ä»¶ I2C å¼•è„šå®šä¹‰ -----------------*/
 #define SOFT_I2C_SCL_PIN    GPIO_PIN_6   // PC6
 #define SOFT_I2C_SCL_PORT   GPIOC
 #define SOFT_I2C_SDA_PIN    GPIO_PIN_8   // PC8
@@ -12,12 +12,12 @@
 
 uint8_t OLED_Buffer[1024];
 
-/*----------------- »ù´¡ÑÓÊ± -----------------*/
+/*----------------- åŸºç¡€å»¶æ—¶ -----------------*/
 static void I2C_Delay(void) {
     for (volatile int i = 0; i < 30; i++) { __NOP(); }
 }
 
-/*----------------- SDA ·½ÏòÇĞ»» -----------------*/
+/*----------------- SDA æ–¹å‘åˆ‡æ¢ -----------------*/
 static void SDA_Out(void) {
     GPIO_InitTypeDef GPIO_InitStruct = {0};
     GPIO_InitStruct.Pin = SOFT_I2C_SDA_PIN;
@@ -27,7 +27,7 @@ static void SDA_Out(void) {
     HAL_GPIO_Init(SOFT_I2C_SDA_PORT, &GPIO_InitStruct);
 }
 
-/*----------------- I2C ÆğÊ¼ĞÅºÅ -----------------*/
+/*----------------- I2C èµ·å§‹ä¿¡å· -----------------*/
 static void I2C_Start(void) {
     SDA_Out();
     HAL_GPIO_WritePin(SOFT_I2C_SDA_PORT, SOFT_I2C_SDA_PIN, GPIO_PIN_SET);
@@ -38,7 +38,7 @@ static void I2C_Start(void) {
     HAL_GPIO_WritePin(SOFT_I2C_SCL_PORT, SOFT_I2C_SCL_PIN, GPIO_PIN_RESET);
 }
 
-/*----------------- I2C Í£Ö¹ĞÅºÅ -----------------*/
+/*----------------- I2C åœæ­¢ä¿¡å· -----------------*/
 static void I2C_Stop(void) {
     SDA_Out();
     HAL_GPIO_WritePin(SOFT_I2C_SDA_PORT, SOFT_I2C_SDA_PIN, GPIO_PIN_RESET);
@@ -48,7 +48,7 @@ static void I2C_Stop(void) {
     I2C_Delay();
 }
 
-/*----------------- I2C ·¢ËÍÒ»¸ö×Ö½Ú -----------------*/
+/*----------------- I2C å‘é€ä¸€ä¸ªå­—èŠ‚ -----------------*/
 static void I2C_SendByte(uint8_t byte) {
     SDA_Out();
     for (uint8_t i = 0; i < 8; i++) {
@@ -63,14 +63,14 @@ static void I2C_SendByte(uint8_t byte) {
         HAL_GPIO_WritePin(SOFT_I2C_SCL_PORT, SOFT_I2C_SCL_PIN, GPIO_PIN_RESET);
         I2C_Delay();
     }
-    // Ó¦´ğÊ±ÖÓ
+    // åº”ç­”æ—¶é’Ÿ
     HAL_GPIO_WritePin(SOFT_I2C_SCL_PORT, SOFT_I2C_SCL_PIN, GPIO_PIN_SET);
     I2C_Delay();
     HAL_GPIO_WritePin(SOFT_I2C_SCL_PORT, SOFT_I2C_SCL_PIN, GPIO_PIN_RESET);
     I2C_Delay();
 }
 
-/*----------------- ·¢ËÍÃüÁî -----------------*/
+/*----------------- å‘é€å‘½ä»¤ -----------------*/
 void OLED_SendCommand(uint8_t cmd) {
     I2C_Start();
     I2C_SendByte(OLED_I2C_ADDR << 1);
@@ -79,7 +79,7 @@ void OLED_SendCommand(uint8_t cmd) {
     I2C_Stop();
 }
 
-/*----------------- ·¢ËÍÊı¾İ -----------------*/
+/*----------------- å‘é€æ•°æ® -----------------*/
 void OLED_SendData(uint8_t *data, uint16_t size) {
     for (uint16_t i = 0; i < size; i++) {
         I2C_Start();
@@ -90,11 +90,11 @@ void OLED_SendData(uint8_t *data, uint16_t size) {
     }
 }
 
-/*----------------- ³õÊ¼»¯ OLED -----------------*/
+/*----------------- åˆå§‹åŒ– OLED -----------------*/
 void OLED_Init(void) {
     HAL_Delay(200);
 
-    OLED_SendCommand(0xAE); // ¹Ø±ÕÏÔÊ¾
+    OLED_SendCommand(0xAE); // å…³é—­æ˜¾ç¤º
     OLED_SendCommand(0xD5); OLED_SendCommand(0x80);
     OLED_SendCommand(0xA8); OLED_SendCommand(0x3F);
     OLED_SendCommand(0xD3); OLED_SendCommand(0x00);
@@ -116,7 +116,7 @@ void OLED_Init(void) {
     OLED_UpdateScreen();
 }
 
-/*----------------- Ë¢ĞÂÆÁÄ» -----------------*/
+/*----------------- åˆ·æ–°å±å¹• -----------------*/
 void OLED_UpdateScreen(void) {
     for (uint8_t page = 0; page < 8; page++) {
         OLED_SendCommand(0xB0 + page);
@@ -126,12 +126,12 @@ void OLED_UpdateScreen(void) {
     }
 }
 
-/*----------------- Çå¿Õ»º³åÇø -----------------*/
+/*----------------- æ¸…ç©ºç¼“å†²åŒº -----------------*/
 void OLED_Clear(void) {
     memset(OLED_Buffer, 0, sizeof(OLED_Buffer));
 }
 
-/*----------------- »­µã -----------------*/
+/*----------------- ç”»ç‚¹ -----------------*/
 void OLED_DrawPixel(uint8_t x, uint8_t y, uint8_t color) {
     if (x >= 128 || y >= 64) return;
     if (color)
@@ -140,7 +140,7 @@ void OLED_DrawPixel(uint8_t x, uint8_t y, uint8_t color) {
         OLED_Buffer[x + (y / 8) * 128] &= ~(1 << (y % 8));
 }
 
-/*----------------- »­Ïß -----------------*/
+/*----------------- ç”»çº¿ -----------------*/
 void OLED_DrawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t color) {
     int dx = abs(x1 - x0), dy = abs(y1 - y0);
     int sx = (x0 < x1) ? 1 : -1, sy = (y0 < y1) ? 1 : -1;
@@ -154,7 +154,7 @@ void OLED_DrawLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t color
     }
 }
 
-/*----------------- »­¾ØĞÎ -----------------*/
+/*----------------- ç”»çŸ©å½¢ -----------------*/
 void OLED_DrawRectangle(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t color) {
     OLED_DrawLine(x0, y0, x1, y0, color);
     OLED_DrawLine(x1, y0, x1, y1, color);
@@ -162,14 +162,14 @@ void OLED_DrawRectangle(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t 
     OLED_DrawLine(x0, y1, x0, y0, color);
 }
 
-/*----------------- Ìî³ä¾ØĞÎ -----------------*/
+/*----------------- å¡«å……çŸ©å½¢ -----------------*/
 void OLED_FillRectangle(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t color) {
     for (uint8_t y = y0; y <= y1; y++)
         for (uint8_t x = x0; x <= x1; x++)
             OLED_DrawPixel(x, y, color);
 }
 
-/*----------------- »­Ô² -----------------*/
+/*----------------- ç”»åœ† -----------------*/
 void OLED_DrawCircle(uint8_t x, uint8_t y, uint8_t r, uint8_t color) {
     int f = 1 - r, ddF_x = 1, ddF_y = -2 * r, xx = 0, yy = r;
     OLED_DrawPixel(x, y + r, color); OLED_DrawPixel(x, y - r, color);
@@ -184,7 +184,7 @@ void OLED_DrawCircle(uint8_t x, uint8_t y, uint8_t r, uint8_t color) {
     }
 }
 
-/*----------------- ÏÔÊ¾×Ö·û -----------------*/
+/*----------------- æ˜¾ç¤ºå­—ç¬¦ -----------------*/
 void OLED_DrawChar(uint8_t x, uint8_t y, char c, FontDef font, uint8_t color) {
     if (c < 32 || c > 126) return;
     const uint8_t *char_data = &font.data[(c - 32) * font.width];
@@ -197,7 +197,7 @@ void OLED_DrawChar(uint8_t x, uint8_t y, char c, FontDef font, uint8_t color) {
     }
 }
 
-/*----------------- ÏÔÊ¾×Ö·û´® -----------------*/
+/*----------------- æ˜¾ç¤ºå­—ç¬¦ä¸² -----------------*/
 void OLED_DrawString(uint8_t x, uint8_t y, char *str, FontDef font, uint8_t color) {
     while (*str) {
         OLED_DrawChar(x, y, *str, font, color);
@@ -205,13 +205,13 @@ void OLED_DrawString(uint8_t x, uint8_t y, char *str, FontDef font, uint8_t colo
         str++;
     }
 }
-/* ¹Ø±Õ OLED ÏÔÊ¾£¨±£³ÖÏÔ´æÄÚÈİ£© */
+/* å…³é—­ OLED æ˜¾ç¤ºï¼ˆä¿æŒæ˜¾å­˜å†…å®¹ï¼‰ */
 void OLED_Sleep(void)
 {
     OLED_SendCommand(0xAE);  // Display OFF
 }
 
-/* ´ò¿ª OLED ÏÔÊ¾ */
+/* æ‰“å¼€ OLED æ˜¾ç¤º */
 void OLED_Wake(void)
 {
     OLED_SendCommand(0xAF);  // Display ON

@@ -3,20 +3,20 @@
 #include <stdio.h>
 #include "stm32u5xx_hal.h"
 #include "syn6288.h"
-#include <stdlib.h>           // ÃÌº”¥À––“‘ π”√ abs()
+#include <stdlib.h>           // Ê∑ªÂä†Ê≠§Ë°å‰ª•‰ΩøÁî® abs()
 
 extern uint8_t system_ready;
 
-#define CALIB_DURATION        2000   // –£◊º≤…—˘ ±≥§£®ms£©
-#define HEAD_DOWN_THRESHOLD   15     // µÕÕ∑„–÷µ£®∂»£©
-#define HEAD_DOWN_COOLDOWN    10000  // ”Ô“Ù≤•±®¿‰»¥ ±º‰£®ms£©
-#define WARMUP_MS             1500   // ¥´∏–∆˜‘§»» ±º‰£®ms£©
-#define SETTLE_MS             8000   //  ◊∏ˆ”––ß ˝æ›∫ÛŒ»∂®µ»¥˝ ±º‰£®ms£©
-#define FORCE_READY_TIMEOUT   20000  // ≥¨ ±«ø÷∆ÕÍ≥…–£◊º£®ms£©
+#define CALIB_DURATION        2000   // Ê†°ÂáÜÈááÊ†∑Êó∂ÈïøÔºàmsÔºâ
+#define HEAD_DOWN_THRESHOLD   15     // ‰ΩéÂ§¥ÈòàÂÄºÔºàÂ∫¶Ôºâ
+#define HEAD_DOWN_COOLDOWN    10000  // ËØ≠Èü≥Êí≠Êä•ÂÜ∑Âç¥Êó∂Èó¥ÔºàmsÔºâ
+#define WARMUP_MS             1500   // ‰º†ÊÑüÂô®È¢ÑÁÉ≠Êó∂Èó¥ÔºàmsÔºâ
+#define SETTLE_MS             8000   // È¶ñ‰∏™ÊúâÊïàÊï∞ÊçÆÂêéÁ®≥ÂÆöÁ≠âÂæÖÊó∂Èó¥ÔºàmsÔºâ
+#define FORCE_READY_TIMEOUT   20000  // Ë∂ÖÊó∂Âº∫Âà∂ÂÆåÊàêÊ†°ÂáÜÔºàmsÔºâ
 
-// ≈Â¥˜∆Ω ” ±µƒæ≠—È≤π≥•÷µ£®∏˘æ›ƒ„œµÕ≥»’÷æ pitch=22 …Ë∂®£©
-// »Áπ˚ƒ„÷ÿ–¬≈Â¥˜–£◊º£¨’‚∏ˆ÷µª·±ª◊‘∂Øº∆À„£¨µ´»Ù–£◊º◊ÀÃ¨≤ª∂‘£®»Á∑≈◊¿…œ£©£¨
-// «“º∆À„≥ˆµƒª˘÷µ∆´¿Î¡„ŒªÃ´¥Û£¨Œ“√«æÕ”√’‚∏ˆπÃ∂®÷µ»∑±£œµÕ≥ƒ‹¡¢º¥’˝≥£ π”√°£
+// ‰Ω©Êà¥Âπ≥ËßÜÊó∂ÁöÑÁªèÈ™åË°•ÂÅøÂÄºÔºàÊ†πÊçÆ‰Ω†Á≥ªÁªüÊó•Âøó pitch=22 ËÆæÂÆöÔºâ
+// Â¶ÇÊûú‰Ω†ÈáçÊñ∞‰Ω©Êà¥Ê†°ÂáÜÔºåËøô‰∏™ÂÄº‰ºöË¢´Ëá™Âä®ËÆ°ÁÆóÔºå‰ΩÜËã•Ê†°ÂáÜÂßøÊÄÅ‰∏çÂØπÔºàÂ¶ÇÊîæÊ°å‰∏äÔºâÔºå
+// ‰∏îËÆ°ÁÆóÂá∫ÁöÑÂü∫ÂÄºÂÅèÁ¶ªÈõ∂‰ΩçÂ§™Â§ßÔºåÊàë‰ª¨Â∞±Áî®Ëøô‰∏™Âõ∫ÂÆöÂÄºÁ°Æ‰øùÁ≥ªÁªüËÉΩÁ´ãÂç≥Ê≠£Â∏∏‰ΩøÁî®„ÄÇ
 #define DEFAULT_HEAD_LEVEL_PITCH  22
 
 static int16_t calibrated_pitch = 0;
@@ -37,7 +37,7 @@ void Posture_Init(void)
 
 void Posture_Update(int16_t pitch_deg)
 {
-    // ================== –£◊ºΩ◊∂Œ ==================
+    // ================== Ê†°ÂáÜÈò∂ÊÆµ ==================
     if (calib_done == 0)
     {
         static uint16_t calib_cnt = 0;
@@ -46,7 +46,7 @@ void Posture_Update(int16_t pitch_deg)
         if (calib_start == 0)
         {
             calib_start = now;
-            /* calib_sum removed °™ using direct pitch_deg */
+            /* calib_sum removed ‚Äî using direct pitch_deg */
             calib_cnt = 0;
             printf("Warming up MPU6050... (1.5s)\n");
             return;
@@ -54,18 +54,18 @@ void Posture_Update(int16_t pitch_deg)
 
         uint32_t elapsed = now - calib_start;
 
-        // ≥¨ ±±£ª§£∫8√ÎŒﬁ”––ß ˝æ›£¨«ø÷∆ÕÍ≥…–£◊º
+        // Ë∂ÖÊó∂‰øùÊä§Ôºö8ÁßíÊó†ÊúâÊïàÊï∞ÊçÆÔºåÂº∫Âà∂ÂÆåÊàêÊ†°ÂáÜ
         if (elapsed > FORCE_READY_TIMEOUT && calib_cnt == 0)
         {
             calibrated_pitch = DEFAULT_HEAD_LEVEL_PITCH;
             calib_done = 1;
             system_ready = 1;
             printf("Calibration timeout! Using default pitch = %d deg.\n", calibrated_pitch);
-            calib_speech_done = 1;  /* Ã¯π˝”Ô“Ù£¨±‹√‚”√ªß¿ßªÛ */
+            calib_speech_done = 1;  /* Ë∑≥ËøáËØ≠Èü≥ÔºåÈÅøÂÖçÁî®Êà∑Âõ∞ÊÉë */
             return; 
         }
 
-        // Ω◊∂Œª˙£∫∂¡ ˝¡¨–¯ 3 √ÎŒ»∂®£®≤®∂Ø °‹ 2°„£©≤≈–£◊ºÕÍ≥…
+        // Èò∂ÊÆµÊú∫ÔºöËØªÊï∞ËøûÁª≠ 3 ÁßíÁ®≥ÂÆöÔºàÊ≥¢Âä® ‚â§ 2¬∞ÔºâÊâçÊ†°ÂáÜÂÆåÊàê
         static uint8_t  phase = 0;
         static int16_t  last_pitch = 0, min_pitch = 0, max_pitch = 0;
         static uint32_t stable_start = 0;
@@ -100,39 +100,39 @@ void Posture_Update(int16_t pitch_deg)
             }
         }
 
-        // Œ»∂®¥Ô±Í °˙ ÕÍ≥…£®”√µ±«∞Œ»∂®÷µ◊ˆª˘◊º£©
+        // Á®≥ÂÆöËææÊ†á ‚Üí ÂÆåÊàêÔºàÁî®ÂΩìÂâçÁ®≥ÂÆöÂÄºÂÅöÂü∫ÂáÜÔºâ
         if (phase == 3)
         {
             calibrated_pitch = pitch_deg;
             calib_done = 1;
-            /* system_ready —”≥ŸµΩ”Ô“Ù≤•±®÷Æ∫Û */
+            /* system_ready Âª∂ËøüÂà∞ËØ≠Èü≥Êí≠Êä•‰πãÂêé */
             printf("Calibration done! (stable for 3s) Base pitch = %d deg\n",
                    calibrated_pitch);
         }
         return;
     }
 
-    // ================== –£◊ºÕÍ≥…∫Ûµƒ”Ô“Ù≤•±® ==================
+    // ================== Ê†°ÂáÜÂÆåÊàêÂêéÁöÑËØ≠Èü≥Êí≠Êä• ==================
     if (calib_done == 1 && calib_speech_done == 0)
     {
-        HAL_Delay(500);   // µ»¥˝÷Æ«∞”Ô“Ù≤•±®Ω· ¯
-        SYN6288_Speak("[v14]◊ÀÃ¨≥ı ºªØÕÍ≥…");
+        HAL_Delay(500);   // Á≠âÂæÖ‰πãÂâçËØ≠Èü≥Êí≠Êä•ÁªìÊùü
+        SYN6288_Speak("[v14]ÂßøÊÄÅÂàùÂßãÂåñÂÆåÊàê");
         calib_speech_done = 1;
-        system_ready = 1;  // ≤•ÕÍ≤≈ø™∑≈ OpenMV ÷∏¡Ó
+        system_ready = 1;  // Êí≠ÂÆåÊâçÂºÄÊîæ OpenMV Êåá‰ª§
     }
 
-    // ================== ’˝≥£π§◊˜Ω◊∂Œ ==================
+    // ================== Ê≠£Â∏∏Â∑•‰ΩúÈò∂ÊÆµ ==================
     int16_t relative_pitch = pitch_deg - calibrated_pitch;
 
-    /* µ˜ ‘¥Ú”°“—“∆≥˝ */
+    /* Ë∞ÉËØïÊâìÂç∞Â∑≤ÁßªÈô§ */
 
-    // µÕÕ∑≈–∂œ£®L3 ƒ£ Ωœ¬≤ª≤•±®£¨æ≤ƒ¨ºÏ≤‚£©
+    // ‰ΩéÂ§¥Âà§Êñ≠ÔºàL3 Ê®°Âºè‰∏ã‰∏çÊí≠Êä•ÔºåÈùôÈªòÊ£ÄÊµãÔºâ
     extern uint8_t dynamic_level;
     if (abs(relative_pitch) > HEAD_DOWN_THRESHOLD && dynamic_level != 3)
     {
         if (HAL_GetTick() - head_down_start > HEAD_DOWN_COOLDOWN)
         {
-            SYN6288_Speak("[v14]ÃßÕ∑");
+            SYN6288_Speak("[v14]Êä¨Â§¥");
             head_down_start = HAL_GetTick();
         }
     }

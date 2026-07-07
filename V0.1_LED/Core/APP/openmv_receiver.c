@@ -8,22 +8,22 @@
 extern UART_HandleTypeDef huart3;
 extern char last_openmv_cmd[32];
 
-/* ---- »·ÐÎ»º³åÇø ---- */
+/* ---- çŽ¯å½¢ç¼“å†²åŒº ---- */
 #define RB_SIZE  1024
 static uint8_t  rb_buf[RB_SIZE];
-static volatile uint16_t rb_head = 0;  /* ISR Ð´ */
-static uint16_t          rb_tail = 0;  /* Ö÷Ñ­»·¶Á */
+static volatile uint16_t rb_head = 0;  /* ISR å†™ */
+static uint16_t          rb_tail = 0;  /* ä¸»å¾ªçŽ¯è¯» */
 
-/* ---- Í³¼Æ ---- */
+/* ---- ç»Ÿè®¡ ---- */
 static uint32_t first_byte_tick = 0;
 static uint32_t line_count      = 0;
 static uint32_t last_report     = 0;
 static uint16_t rb_max_depth    = 0;
 
-/* ---- ÖÐ¶Ï½ÓÊÕ±êÖ¾ ---- */
+/* ---- ä¸­æ–­æŽ¥æ”¶æ ‡å¿— ---- */
 static volatile uint8_t it_started = 0;
 
-/* ---------- Ö¸Áî½âÎö ---------- */
+/* ---------- æŒ‡ä»¤è§£æž ---------- */
 static void ParseCommand(const char *cmd)
 {
     char clean[OPENMV_RX_BUF_SIZE];
@@ -38,18 +38,18 @@ static void ParseCommand(const char *cmd)
 
     strncpy(last_openmv_cmd, clean, sizeof(last_openmv_cmd) - 1);
     last_openmv_cmd[31] = '\0';
-    extern uint32_t omv_last_tick;  /* ¼ÇÂ¼×îºóÊÕµ½Ö¸ÁîµÄÊ±¼ä */
+    extern uint32_t omv_last_tick;  /* è®°å½•æœ€åŽæ”¶åˆ°æŒ‡ä»¤çš„æ—¶é—´ */
     omv_last_tick = HAL_GetTick();
 
-    if (strcmp(clean, "NONE") == 0) return;  /* ¾²Ä¬£¬²»´òÓ¡²»Í³¼Æ */
+    if (strcmp(clean, "NONE") == 0) return;  /* é™é»˜ï¼Œä¸æ‰“å°ä¸ç»Ÿè®¡ */
 
     printf("[OMV] CMD: %s\n", clean);
 
-    /* Ð£×¼ÆÚ¼äÖ»¼ÇÂ¼²»²¥±¨£¬±ÜÃâ´ò¶Ï³õÊ¼»¯ÓïÒôÐòÁÐ */
+    /* æ ¡å‡†æœŸé—´åªè®°å½•ä¸æ’­æŠ¥ï¼Œé¿å…æ‰“æ–­åˆå§‹åŒ–è¯­éŸ³åºåˆ— */
     extern uint8_t system_ready;
     if (!system_ready) return;
 
-    /* Í¬Ö¸Áî 5 ÃëÈ¥ÖØ */
+    /* åŒæŒ‡ä»¤ 5 ç§’åŽ»é‡ */
     {
         static char   last_spoken[32] = "";
         static uint32_t last_spoken_tick = 0;
@@ -60,30 +60,30 @@ static void ParseCommand(const char *cmd)
         last_spoken_tick = HAL_GetTick();
     }
 
-    if      (strcmp(clean, "RED")            == 0) SYN6288_Speak("[v16] Ç°·½ºìµÆ£¬ÇëµÈ´ý");
-    else if (strcmp(clean, "GREEN")          == 0) SYN6288_Speak("[v14] Ç°·½ÂÌµÆ£¬ÇëÍ¨ÐÐ");
-    else if (strcmp(clean, "ZEBRA")          == 0) SYN6288_Speak("[v14] Ç°·½ÓÐ°ßÂíÏß");
-    else if (strcmp(clean, "OBSTACLE")       == 0) SYN6288_Speak("[v16] Ç°·½ÓÐÕÏ°­Îï£¬ÇëÈÆÐÐ");
-    else if (strcmp(clean, "PIT")            == 0) SYN6288_Speak("[v16] Ç°·½ÓÐ¿ÓÍÝ£¬Çë×¢Òâ½ÅÏÂ");
-    else if (strcmp(clean, "BUMP")           == 0) SYN6288_Speak("[v16] Ç°·½Â·ÃæÍ¹Æð£¬ÇëÐ¡ÐÄ");
-    else if (strcmp(clean, "OVERHEAD")       == 0) SYN6288_Speak("[v16] Ð¡ÐÄÍ·¶¥ÕÏ°­");
-    else if (strcmp(clean, "LATERAL")        == 0) SYN6288_Speak("[v16] Ç°·½ÓÐºáÏòÀ¹½ØÎï£¬ÇëÈÆÐÐ");
-    else if (strcmp(clean, "CROSSWALK_DEVIATION")==0) SYN6288_Speak("[v14] ÒÑÆ«Àë°ßÂíÏß£¬Çëµ÷Õû·½Ïò");
-    else if (strcmp(clean, "CROSSWALK_END")  == 0) SYN6288_Speak("[v16] °ßÂíÏß¼´½«½áÊø£¬×¢ÒâÇ°·½");
-    else if (strcmp(clean, "CROSSWALK_NEAR") == 0) SYN6288_Speak("[v14] ¼´½«×ß³ö°ßÂíÏß");
-    else if (strcmp(clean, "TACTILE_WARN")   == 0) SYN6288_Speak("[v14] Çë»Øµ½Ã¤µÀ");
-    else if (strcmp(clean, "TACTILE_TURN")   == 0) SYN6288_Speak("[v14] Ã¤µÀ×ªÍä£¬ÇëÑØÃ¤µÀÐÐ×ß");
-    else if (strcmp(clean, "OBSTACLE_NEAR")  == 0) SYN6288_Speak("[v14] Ç°·½ÓÐÕÏ°­Îï£¬ÇëÈÆÐÐ");
-    else if (strcmp(clean, "STAIRS_DOWN")    == 0) SYN6288_Speak("[v16] Ç°·½ÏÂÂ¥ÌÝ");
-    else if (strcmp(clean, "STAIRS_UP")      == 0) SYN6288_Speak("[v14] Ç°·½ÉÏÂ¥ÌÝ");
-    else if (strcmp(clean, "LEFT")           == 0) SYN6288_Speak("[v14] ÇëÏò×óÈÆÐÐ");
-    else if (strcmp(clean, "RIGHT")          == 0) SYN6288_Speak("[v14] ÇëÏòÓÒÈÆÐÐ");
+    if      (strcmp(clean, "RED")            == 0) SYN6288_Speak("[v16] å‰æ–¹çº¢ç¯ï¼Œè¯·ç­‰å¾…");
+    else if (strcmp(clean, "GREEN")          == 0) SYN6288_Speak("[v14] å‰æ–¹ç»¿ç¯ï¼Œè¯·é€šè¡Œ");
+    else if (strcmp(clean, "ZEBRA")          == 0) SYN6288_Speak("[v14] å‰æ–¹æœ‰æ–‘é©¬çº¿");
+    else if (strcmp(clean, "OBSTACLE")       == 0) SYN6288_Speak("[v16] å‰æ–¹æœ‰éšœç¢ç‰©ï¼Œè¯·ç»•è¡Œ");
+    else if (strcmp(clean, "PIT")            == 0) SYN6288_Speak("[v16] å‰æ–¹æœ‰å‘æ´¼ï¼Œè¯·æ³¨æ„è„šä¸‹");
+    else if (strcmp(clean, "BUMP")           == 0) SYN6288_Speak("[v16] å‰æ–¹è·¯é¢å‡¸èµ·ï¼Œè¯·å°å¿ƒ");
+    else if (strcmp(clean, "OVERHEAD")       == 0) SYN6288_Speak("[v16] å°å¿ƒå¤´é¡¶éšœç¢");
+    else if (strcmp(clean, "LATERAL")        == 0) SYN6288_Speak("[v16] å‰æ–¹æœ‰æ¨ªå‘æ‹¦æˆªç‰©ï¼Œè¯·ç»•è¡Œ");
+    else if (strcmp(clean, "CROSSWALK_DEVIATION")==0) SYN6288_Speak("[v14] å·²åç¦»æ–‘é©¬çº¿ï¼Œè¯·è°ƒæ•´æ–¹å‘");
+    else if (strcmp(clean, "CROSSWALK_END")  == 0) SYN6288_Speak("[v16] æ–‘é©¬çº¿å³å°†ç»“æŸï¼Œæ³¨æ„å‰æ–¹");
+    else if (strcmp(clean, "CROSSWALK_NEAR") == 0) SYN6288_Speak("[v14] å³å°†èµ°å‡ºæ–‘é©¬çº¿");
+    else if (strcmp(clean, "TACTILE_WARN")   == 0) SYN6288_Speak("[v14] è¯·å›žåˆ°ç›²é“");
+    else if (strcmp(clean, "TACTILE_TURN")   == 0) SYN6288_Speak("[v14] ç›²é“è½¬å¼¯ï¼Œè¯·æ²¿ç›²é“è¡Œèµ°");
+    else if (strcmp(clean, "OBSTACLE_NEAR")  == 0) SYN6288_Speak("[v14] å‰æ–¹æœ‰éšœç¢ç‰©ï¼Œè¯·ç»•è¡Œ");
+    else if (strcmp(clean, "STAIRS_DOWN")    == 0) SYN6288_Speak("[v16] å‰æ–¹ä¸‹æ¥¼æ¢¯");
+    else if (strcmp(clean, "STAIRS_UP")      == 0) SYN6288_Speak("[v14] å‰æ–¹ä¸Šæ¥¼æ¢¯");
+    else if (strcmp(clean, "LEFT")           == 0) SYN6288_Speak("[v14] è¯·å‘å·¦ç»•è¡Œ");
+    else if (strcmp(clean, "RIGHT")          == 0) SYN6288_Speak("[v14] è¯·å‘å³ç»•è¡Œ");
     else if (strncmp(clean, "PRICE:", 6)     == 0) { int p = atoi(clean + 6); Voice_Speak_Price(p); }
-    /* TACTILE (Ã¤µÀÖÐ¼ä) / NONE ¡ª ²»²¥±¨ */
+    /* TACTILE (ç›²é“ä¸­é—´) / NONE â€” ä¸æ’­æŠ¥ */
 }
 
 /* ==================================================================
- *  »·ÐÎ»º³å API
+ *  çŽ¯å½¢ç¼“å†² API
  * ================================================================== */
 static inline uint16_t rb_available(void)
 {
@@ -101,30 +101,30 @@ static inline uint8_t rb_pop(void)
 }
 
 /* ==================================================================
- *  ISR »Øµ÷£ºÃ¿ÊÕµ½Ò»¸ö×Ö½Ú¾ÍÈû½ø»·ÐÎ»º³å
+ *  ISR å›žè°ƒï¼šæ¯æ”¶åˆ°ä¸€ä¸ªå­—èŠ‚å°±å¡žè¿›çŽ¯å½¢ç¼“å†²
  * ================================================================== */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart != &huart3) return;
 
-    uint8_t ch = rb_buf[rb_head];  /* RDR ÒÑÓÉ HAL ¶Áµ½ rx_buf */
+    uint8_t ch = rb_buf[rb_head];  /* RDR å·²ç”± HAL è¯»åˆ° rx_buf */
     HAL_GPIO_TogglePin(LED_GREEN_GPIO_Port, LED_GREEN_Pin);
 
-    /* Ìø¹ý \r */
+    /* è·³è¿‡ \r */
     if (ch != '\r') {
         uint16_t next = (rb_head + 1) % RB_SIZE;
-        if (next != rb_tail) {  /* Î´Âú */
+        if (next != rb_tail) {  /* æœªæ»¡ */
             rb_head = next;
         }
-        /* ÂúÁË¾Í¶ª£¬²»×èÈû */
+        /* æ»¡äº†å°±ä¸¢ï¼Œä¸é˜»å¡ž */
     }
 
-    /* ¼ÌÐø½ÓÊÕÏÂÒ»¸ö×Ö½Ú */
+    /* ç»§ç»­æŽ¥æ”¶ä¸‹ä¸€ä¸ªå­—èŠ‚ */
     HAL_UART_Receive_IT(&huart3, &rb_buf[rb_head], 1);
 }
 
 /* ==================================================================
- *  UART ´íÎó ISR »Øµ÷
+ *  UART é”™è¯¯ ISR å›žè°ƒ
  * ================================================================== */
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
@@ -135,13 +135,13 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     if (__HAL_UART_GET_FLAG(huart, UART_FLAG_FE))
         __HAL_UART_CLEAR_FEFLAG(huart);
 
-    /* »Ö¸´½ÓÊÕ */
+    /* æ¢å¤æŽ¥æ”¶ */
     HAL_UART_Receive_IT(&huart3, &rb_buf[rb_head], 1);
     HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
 }
 
 /* ==================================================================
- *  ³õÊ¼»¯
+ *  åˆå§‹åŒ–
  * ================================================================== */
 void OPENMV_Init(void)
 {
@@ -152,7 +152,7 @@ void OPENMV_Init(void)
     line_count    = 0;
     last_report   = 0;
 
-    /* Æô¶¯ÖÐ¶Ï½ÓÊÕ */
+    /* å¯åŠ¨ä¸­æ–­æŽ¥æ”¶ */
     HAL_NVIC_EnableIRQ(USART3_IRQn);
     HAL_UART_Receive_IT(&huart3, &rb_buf[rb_head], 1);
     it_started = 1;
@@ -161,7 +161,7 @@ void OPENMV_Init(void)
 }
 
 /* ==================================================================
- *  Ö÷Ñ­»·µ÷ÓÃ£º´Ó»·ÐÎ»º³åÖÐÈ¡×Ö½ÚÆ´½Ó³ÉÐÐ
+ *  ä¸»å¾ªçŽ¯è°ƒç”¨ï¼šä»ŽçŽ¯å½¢ç¼“å†²ä¸­å–å­—èŠ‚æ‹¼æŽ¥æˆè¡Œ
  * ================================================================== */
 void OPENMV_ProcessCommand(void)
 {
@@ -186,7 +186,7 @@ void OPENMV_ProcessCommand(void)
         }
     }
 
-    /* ³¬Ê±ÇåÀí£º5 ÃëÎÞÐÂÖ¸Áî ¡ú ÖØÖÃÎª NONE */
+    /* è¶…æ—¶æ¸…ç†ï¼š5 ç§’æ— æ–°æŒ‡ä»¤ â†’ é‡ç½®ä¸º NONE */
     extern char last_openmv_cmd[];
     extern uint32_t omv_last_tick;
     if (omv_last_tick > 0 && HAL_GetTick() - omv_last_tick > 5000) {
@@ -194,7 +194,7 @@ void OPENMV_ProcessCommand(void)
         omv_last_tick = 0;
     }
 
-    /* Ã¿ 5 Ãë»ã±¨ */
+    /* æ¯ 5 ç§’æ±‡æŠ¥ */
     if (HAL_GetTick() - last_report > 5000) {
         uint16_t depth = rb_available();
         if (depth > rb_max_depth) rb_max_depth = depth;

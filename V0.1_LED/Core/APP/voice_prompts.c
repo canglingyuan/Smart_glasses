@@ -3,45 +3,45 @@
 #include <stdio.h>
 
 /**
- * @brief  ÓÃÖĞÎÄ²¥±¨¾àÀë
- * @param  dist: ¾àÀëÖµ£¬µ¥Î»cm¡£Èç¹ûĞ¡ÓÚ0£¬±íÊ¾ÎŞĞ§²âÁ¿
+ * @brief  ç”¨ä¸­æ–‡æ’­æŠ¥è·ç¦»
+ * @param  dist: è·ç¦»å€¼ï¼Œå•ä½cmã€‚å¦‚æœå°äº0ï¼Œè¡¨ç¤ºæ— æ•ˆæµ‹é‡
  */
 void Voice_Speak_Distance(float dist)
 {
-    if (dist < 0) return;  // ÎŞĞ§²âÁ¿£¬²»²¥±¨
+    if (dist < 0) return;  // æ— æ•ˆæµ‹é‡ï¼Œä¸æ’­æŠ¥
 
     char message[64];
     int cm = (int)dist;
 
     if (cm < 30) {
-        // ½ü¾àÀë£º½ô¼±ÌáĞÑ
-        snprintf(message, sizeof(message), "[v16] Ç°·½ %d ÀåÃ×ÓĞÕÏ°­Îï£¬ÇëÍ£Ö¹", cm);
+        // è¿‘è·ç¦»ï¼šç´§æ€¥æé†’
+        snprintf(message, sizeof(message), "[v16] å‰æ–¹ %d å˜ç±³æœ‰éšœç¢ç‰©ï¼Œè¯·åœæ­¢", cm);
     } else if (cm < 100) {
-        // ÖĞ¾àÀë£º×¢ÒâÌáĞÑ
-        snprintf(message, sizeof(message), "[v14] ×¢Òâ£¬Ç°·½ %d ÀåÃ×ÓĞÎïÌå", cm);
+        // ä¸­è·ç¦»ï¼šæ³¨æ„æé†’
+        snprintf(message, sizeof(message), "[v14] æ³¨æ„ï¼Œå‰æ–¹ %d å˜ç±³æœ‰ç‰©ä½“", cm);
     } else {
-        // Ô¶¾àÀë£º½öÎªĞÅÏ¢ÌáÊ¾
-        snprintf(message, sizeof(message), "[v12] Ç°·½ %d ÀåÃ×ÄÚÓĞÎïÌå", cm);
+        // è¿œè·ç¦»ï¼šä»…ä¸ºä¿¡æ¯æç¤º
+        snprintf(message, sizeof(message), "[v12] å‰æ–¹ %d å˜ç±³å†…æœ‰ç‰©ä½“", cm);
     }
 
     SYN6288_Speak(message);
 }
 
 /**
- * @brief  ²¥±¨ÕÏ°­Îï¾¯¸æ
+ * @brief  æ’­æŠ¥éšœç¢ç‰©è­¦å‘Š
  */
 void Voice_Speak_Obstacle(void)
 {
-    SYN6288_Speak("[v16] Ç°·½ÓĞÕÏ°­Îï£¬ÇëÈÆĞĞ");
+    SYN6288_Speak("[v16] å‰æ–¹æœ‰éšœç¢ç‰©ï¼Œè¯·ç»•è¡Œ");
 }
 
 /**
- * @brief  ²¥±¨¼Û¸ñ
- * @param  price: ¼Û¸ñÊıÖµ£¬µ¥Î»ÎªÔª
+ * @brief  æ’­æŠ¥ä»·æ ¼
+ * @param  price: ä»·æ ¼æ•°å€¼ï¼Œå•ä½ä¸ºå…ƒ
  */
 void Voice_Speak_Price(int price)
 {
     char message[48];
-    snprintf(message, sizeof(message), "[v14] ¼Û¸ñÎª %d Ôª", price);
+    snprintf(message, sizeof(message), "[v14] ä»·æ ¼ä¸º %d å…ƒ", price);
     SYN6288_Speak(message);
 }

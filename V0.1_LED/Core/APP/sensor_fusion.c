@@ -5,17 +5,17 @@
 #include <stdlib.h>
 
 /* ================================================================
- *  Œ£œ’∑÷«¯≥£¡ø
+ *  Âç±Èô©ÂàÜÂå∫Â∏∏Èáè
  * ================================================================ */
-#define ZONE_DANGER_CM    100   /* <1m Œ£œ’ */
-#define ZONE_CAUTION_CM   200   /* 1-2m ◊¢“‚ */
-#define OVERHEAD_CM        80   /* Õ∑∂•’œ∞≠„–÷µ */
-#define OVERHEAD_MS       500   /* ≥÷–¯ 500ms »∑»œ */
-#define EMERGENCY_CM       50   /* <50cm «ø÷∆ªΩ–— */
-#define TOF_INVALID_MAX     5   /* ¡¨–¯Œﬁ–ß÷° ˝Ã¯π˝ */
+#define ZONE_DANGER_CM    100   /* <1m Âç±Èô© */
+#define ZONE_CAUTION_CM   200   /* 1-2m Ê≥®ÊÑè */
+#define OVERHEAD_CM        80   /* Â§¥È°∂ÈöúÁ¢çÈòàÂÄº */
+#define OVERHEAD_MS       500   /* ÊåÅÁª≠ 500ms Á°ÆËÆ§ */
+#define EMERGENCY_CM       50   /* <50cm Âº∫Âà∂Âî§ÈÜí */
+#define TOF_INVALID_MAX     5   /* ËøûÁª≠Êó†ÊïàÂ∏ßÊï∞Ë∑≥Ëøá */
 
 /* ================================================================
- *  æ≤÷π∏®÷˙£∫º∆À„ TOF »´æ÷◊ÓΩ¸æ‡¿Î
+ *  ÈùôÊ≠¢ËæÖÂä©ÔºöËÆ°ÁÆó TOF ÂÖ®Â±ÄÊúÄËøëË∑ùÁ¶ª
  * ================================================================ */
 static int16_t TOF_Closest(int16_t* tof)
 {
@@ -28,7 +28,7 @@ static int16_t TOF_Closest(int16_t* tof)
 }
 
 /* ================================================================
- *   ˝æ›”––ß–‘ºÏ≤È
+ *  Êï∞ÊçÆÊúâÊïàÊÄßÊ£ÄÊü•
  * ================================================================ */
 static uint8_t TOF_InvalidFrames(int16_t* tof)
 {
@@ -43,7 +43,7 @@ static uint8_t TOF_InvalidFrames(int16_t* tof)
 }
 
 /* ================================================================
- *  ÷˜»⁄∫œ
+ *  ‰∏ªËûçÂêà
  * ================================================================ */
 FusionResult SensorFusion_Run(
     int16_t* tof_data,
@@ -57,36 +57,36 @@ FusionResult SensorFusion_Run(
     int16_t tof_closest = TOF_Closest(tof_data);
     int tof_invalid = TOF_InvalidFrames(tof_data);
 
-    /* ----  ˝æ›”––ß–‘£∫TOF ¡¨–¯ 5 ÷°Œﬁ–ß °˙ Ã¯π˝ TOF ≈–∂œ ---- */
+    /* ---- Êï∞ÊçÆÊúâÊïàÊÄßÔºöTOF ËøûÁª≠ 5 Â∏ßÊó†Êïà ‚Üí Ë∑≥Ëøá TOF Âà§Êñ≠ ---- */
     if (tof_invalid > TOF_INVALID_MAX) {
         tof_closest = 0;
     }
 
-    /* ---- ΩÙº±£∫TOF < 50cm£¨«ø÷∆ªΩ–— ---- */
+    /* ---- Á¥ßÊÄ•ÔºöTOF < 50cmÔºåÂº∫Âà∂Âî§ÈÜí ---- */
     if (tof_closest > 10 && tof_closest < EMERGENCY_CM * 10) {
         result.level = RISK_CRITICAL;
-        result.message = "Œ£œ’£¨Õ£œ¬";
+        result.message = "Âç±Èô©ÔºåÂÅú‰∏ã";
         goto check_repeat;
     }
 
-    /* ---- Ã®Ω◊ºÏ≤‚£®TOF µ◊≤ø vs …œ≤ø£©---- */
+    /* ---- Âè∞Èò∂Ê£ÄÊµãÔºàTOF Â∫ïÈÉ® vs ‰∏äÈÉ®Ôºâ---- */
     {
         const char* step = TOF_DetectStep();
         if (step) {
             result.level = RISK_HIGH;
-            result.message = (strcmp(step, "step_down") == 0) ? "œ¬Ã®Ω◊" : "…œÃ®Ω◊";
+            result.message = (strcmp(step, "step_down") == 0) ? "‰∏ãÂè∞Èò∂" : "‰∏äÂè∞Èò∂";
             goto check_repeat;
         }
     }
 
-    /* ---- Õ∑∂•±£ª§£∫≥¨…˘≤® < 80cm + ≥÷–¯ 500ms ---- */
+    /* ---- Â§¥È°∂‰øùÊä§ÔºöË∂ÖÂ£∞Ê≥¢ < 80cm + ÊåÅÁª≠ 500ms ---- */
     {
         static uint32_t overhead_start = 0;
         if (ultrasonic_dist > 20 && ultrasonic_dist < OVERHEAD_CM) {
             if (overhead_start == 0) overhead_start = HAL_GetTick();
             if (HAL_GetTick() - overhead_start > OVERHEAD_MS) {
                 result.level = RISK_HIGH;
-                result.message = "–°–ƒÕ∑∂•";
+                result.message = "Â∞èÂøÉÂ§¥È°∂";
                 overhead_start = 0;
                 goto check_repeat;
             }
@@ -95,47 +95,47 @@ FusionResult SensorFusion_Run(
         }
     }
 
-    /* ---- ≥¨…˘≤®∑÷«¯ ---- */
+    /* ---- Ë∂ÖÂ£∞Ê≥¢ÂàÜÂå∫ ---- */
     if (ultrasonic_dist > 20 && ultrasonic_dist < ZONE_DANGER_CM) {
         result.level = RISK_CRITICAL;
-        result.message = "«∞∑Ω’œ∞≠";
+        result.message = "ÂâçÊñπÈöúÁ¢ç";
         goto check_repeat;
     }
     if (ultrasonic_dist >= ZONE_DANGER_CM && ultrasonic_dist < ZONE_CAUTION_CM) {
         if (tof_closest > 10 && tof_closest < ZONE_DANGER_CM * 10) {
             result.level = RISK_HIGH;
-            result.message = "«∞∑Ω’œ∞≠";
+            result.message = "ÂâçÊñπÈöúÁ¢ç";
             goto check_repeat;
         }
         result.level = RISK_MEDIUM;
-        result.message = "◊¢“‚«∞∑Ω";
+        result.message = "Ê≥®ÊÑèÂâçÊñπ";
         goto check_repeat;
     }
 
-    /* ---- µÕÕ∑Ã·–—£®‘⁄ posture_monitor ∂¿¡¢¥¶¿Ì£¨¥À¥¶≤ª÷ÿ∏¥£©---- */
+    /* ---- ‰ΩéÂ§¥ÊèêÈÜíÔºàÂú® posture_monitor Áã¨Á´ãÂ§ÑÁêÜÔºåÊ≠§Â§Ñ‰∏çÈáçÂ§çÔºâ---- */
 
     /* ---- OpenMV ---- */
     if (!openmv_cmd) goto done;
-    if      (strcmp(openmv_cmd, "RED")            == 0) { result.level = RISK_HIGH;   result.message = "∫Ïµ∆";       goto check_repeat; }
-    else if (strcmp(openmv_cmd, "OVERHEAD")       == 0) { result.level = RISK_HIGH;   result.message = "Õ∑∂•’œ∞≠";   goto check_repeat; }
-    else if (strcmp(openmv_cmd, "LATERAL")        == 0) { result.level = RISK_HIGH;   result.message = "∫·œÚ¿πΩÿ";   goto check_repeat; }
-    else if (strcmp(openmv_cmd, "CROSSWALK_END")  == 0) { result.level = RISK_HIGH;   result.message = "∞ﬂ¬ÌœﬂΩ· ¯"; goto check_repeat; }
-    else if (strcmp(openmv_cmd, "STAIRS_DOWN")    == 0) { result.level = RISK_HIGH;   result.message = "œ¬¬•Ã›";     goto check_repeat; }
-    else if (strcmp(openmv_cmd, "OBSTACLE")       == 0) { result.level = RISK_MEDIUM; result.message = "«∞∑Ω’œ∞≠ŒÔ"; goto check_repeat; }
-    else if (strcmp(openmv_cmd, "PIT")            == 0) { result.level = RISK_MEDIUM; result.message = "«∞∑Ω”–ø”Õ›"; goto check_repeat; }
-    else if (strcmp(openmv_cmd, "BUMP")           == 0) { result.level = RISK_MEDIUM; result.message = "¬∑√ÊÕπ∆";   goto check_repeat; }
-    else if (strcmp(openmv_cmd, "CROSSWALK_NEAR") == 0) { result.level = RISK_MEDIUM; result.message = "º¥Ω´≥ˆ∞ﬂ¬Ìœﬂ"; goto check_repeat; }
-    else if (strcmp(openmv_cmd, "TACTILE_WARN")   == 0) { result.level = RISK_MEDIUM; result.message = "∆´¿Î√§µ¿";   goto check_repeat; }
-    else if (strcmp(openmv_cmd, "OBSTACLE_NEAR")  == 0) { result.level = RISK_MEDIUM; result.message = "«∞∑Ω’œ∞≠ŒÔ"; goto check_repeat; }
-    else if (strcmp(openmv_cmd, "GREEN")          == 0) { result.level = RISK_HIGH;   result.message = "¬Ãµ∆";       goto check_repeat; }
-    else if (strcmp(openmv_cmd, "STAIRS_UP")      == 0) { result.level = RISK_LOW;    result.message = "…œ¬•Ã›";     goto check_repeat; }
+    if      (strcmp(openmv_cmd, "RED")            == 0) { result.level = RISK_HIGH;   result.message = "Á∫¢ÁÅØ";       goto check_repeat; }
+    else if (strcmp(openmv_cmd, "OVERHEAD")       == 0) { result.level = RISK_HIGH;   result.message = "Â§¥È°∂ÈöúÁ¢ç";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "LATERAL")        == 0) { result.level = RISK_HIGH;   result.message = "Ê®™ÂêëÊã¶Êà™";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "CROSSWALK_END")  == 0) { result.level = RISK_HIGH;   result.message = "ÊñëÈ©¨Á∫øÁªìÊùü"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "STAIRS_DOWN")    == 0) { result.level = RISK_HIGH;   result.message = "‰∏ãÊ•ºÊ¢Ø";     goto check_repeat; }
+    else if (strcmp(openmv_cmd, "OBSTACLE")       == 0) { result.level = RISK_MEDIUM; result.message = "ÂâçÊñπÈöúÁ¢çÁâ©"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "PIT")            == 0) { result.level = RISK_MEDIUM; result.message = "ÂâçÊñπÊúâÂùëÊ¥º"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "BUMP")           == 0) { result.level = RISK_MEDIUM; result.message = "Ë∑ØÈù¢Âá∏Ëµ∑";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "CROSSWALK_NEAR") == 0) { result.level = RISK_MEDIUM; result.message = "Âç≥Â∞ÜÂá∫ÊñëÈ©¨Á∫ø"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "TACTILE_WARN")   == 0) { result.level = RISK_MEDIUM; result.message = "ÂÅèÁ¶ªÁõ≤ÈÅì";   goto check_repeat; }
+    else if (strcmp(openmv_cmd, "OBSTACLE_NEAR")  == 0) { result.level = RISK_MEDIUM; result.message = "ÂâçÊñπÈöúÁ¢çÁâ©"; goto check_repeat; }
+    else if (strcmp(openmv_cmd, "GREEN")          == 0) { result.level = RISK_HIGH;   result.message = "ÁªøÁÅØ";       goto check_repeat; }
+    else if (strcmp(openmv_cmd, "STAIRS_UP")      == 0) { result.level = RISK_LOW;    result.message = "‰∏äÊ•ºÊ¢Ø";     goto check_repeat; }
 done:
 
     result.level = RISK_NONE;
     return result;
 
 check_repeat:
-    /* œ‡Õ¨œ˚œ¢ 3 √Îƒ⁄≤ª÷ÿ∏¥ */
+    /* Áõ∏ÂêåÊ∂àÊÅØ 3 ÁßíÂÜÖ‰∏çÈáçÂ§ç */
     if (result.message) {
         uint32_t now = HAL_GetTick();
         if (last_msg && strcmp(result.message, last_msg) == 0
